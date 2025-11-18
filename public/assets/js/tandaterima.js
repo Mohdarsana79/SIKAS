@@ -41,26 +41,50 @@ class TandaTerimaManager {
     initializeModalHandlers() {
         const previewModal = document.getElementById('previewModal');
         const fullscreenToggle = document.getElementById('fullscreenToggle');
+        const refreshPdf = document.getElementById('refreshPdf');
+        const downloadPdf = document.getElementById('downloadPdf');
+        const fallbackDownload = document.getElementById('fallbackDownload');
+        
+        let currentTandaTerimaId = null;
+        let isFullscreen = false;
         
         if (previewModal) {
             // When modal is about to be shown
             previewModal.addEventListener('show.bs.modal', (event) => {
                 const button = event.relatedTarget;
-                const tandaTerimaId = button.getAttribute('data-id');
-                const previewUrl = `${this.getBaseUrl()}/tanda-terima/${tandaTerimaId}/preview-pdf`;
+                currentTandaTerimaId = button.getAttribute('data-id');
+                const previewUrl = `${this.getBaseUrl()}/tanda-terima/${currentTandaTerimaId}/preview-pdf`;
+                const downloadUrl = `${this.getBaseUrl()}/tanda-terima/${currentTandaTerimaId}/pdf`;
                 
-                console.log('Opening preview modal for ID:', tandaTerimaId);
+                console.log('Opening preview modal for ID:', currentTandaTerimaId);
+                
+                // Reset fullscreen state
+                this.exitFullscreen();
+                isFullscreen = false;
                 
                 // Update modal title
-                document.getElementById('previewModalLabel').textContent = `Preview Tanda Terima #${tandaTerimaId}`;
+                document.getElementById('previewModalLabel').innerHTML = 
+                    `<i class="bi bi-file-earmark-pdf me-2"></i>Preview Tanda Terima #${currentTandaTerimaId}`;
+                
+                // Set download URLs
+                if (downloadPdf) downloadPdf.href = downloadUrl;
+                if (fallbackDownload) fallbackDownload.href = downloadUrl;
+                
+                // Update info text
+                document.getElementById('pdfInfo').textContent = 'Memuat dokumen PDF...';
                 
                 // Reset dan set iframe source
-                this.setIframeSource(previewUrl, tandaTerimaId);
+                this.setIframeSource(previewUrl, currentTandaTerimaId);
             });
 
             // Reset modal when closed
             previewModal.addEventListener('hidden.bs.modal', () => {
                 console.log('Modal closed, clearing iframe...');
+                
+                // Exit fullscreen jika aktif
+                this.exitFullscreen();
+                isFullscreen = false;
+                
                 // Clear iframe source saat modal ditutup
                 const pdfIframe = document.getElementById('pdfIframe');
                 if (pdfIframe) {
@@ -68,45 +92,154 @@ class TandaTerimaManager {
                 }
                 
                 // Reset UI states
-                const pdfLoading = document.getElementById('pdfLoading');
-                const pdfFallback = document.getElementById('pdfFallback');
-                if (pdfLoading) pdfLoading.style.display = 'flex';
-                if (pdfFallback) pdfFallback.style.display = 'none';
+                this.resetModalStates();
                 
-                // Reset fullscreen
-                const modalDialog = previewModal.querySelector('.modal-dialog');
-                if (modalDialog) {
-                    modalDialog.classList.remove('modal-fullscreen');
-                }
-                if (fullscreenToggle) {
-                    fullscreenToggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-                    fullscreenToggle.setAttribute('title', 'Fullscreen');
-                }
-                
-                document.body.style.overflow = '';
+                // Reset current ID
+                currentTandaTerimaId = null;
             });
         }
 
         // Fullscreen toggle
         if (fullscreenToggle) {
             fullscreenToggle.addEventListener('click', () => {
-                const modalDialog = previewModal.querySelector('.modal-dialog');
-                if (!modalDialog) return;
-                
-                const isFullscreen = modalDialog.classList.contains('modal-fullscreen');
-                
-                if (isFullscreen) {
-                    modalDialog.classList.remove('modal-fullscreen');
-                    fullscreenToggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-                    fullscreenToggle.setAttribute('title', 'Fullscreen');
-                    document.body.style.overflow = '';
+                if (!isFullscreen) {
+                    this.enterFullscreen();
+                    isFullscreen = true;
                 } else {
-                    modalDialog.classList.add('modal-fullscreen');
-                    fullscreenToggle.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
-                    fullscreenToggle.setAttribute('title', 'Exit Fullscreen');
-                    document.body.style.overflow = 'hidden';
+                    this.exitFullscreen();
+                    isFullscreen = false;
                 }
             });
+        }
+        
+        // Refresh PDF
+        if (refreshPdf) {
+            refreshPdf.addEventListener('click', () => {
+                if (currentTandaTerimaId) {
+                    const previewUrl = `${this.getBaseUrl()}/tanda-terima/${currentTandaTerimaId}/preview-pdf`;
+                    this.setIframeSource(previewUrl, currentTandaTerimaId);
+                    this.showToast('Memuat ulang PDF...', 'info');
+                }
+            });
+        }
+        
+        // Handle escape key untuk keluar fullscreen
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                this.exitFullscreen();
+                isFullscreen = false;
+            }
+        });
+    }
+
+    enterFullscreen() {
+        const modal = document.getElementById('previewModal');
+        const modalDialog = modal.querySelector('.modal-dialog');
+        const modalContent = modal.querySelector('.modal-content');
+        const fullscreenToggle = document.getElementById('fullscreenToggle');
+        const modalHeader = modal.querySelector('.modal-header');
+        
+        if (!modalDialog) return;
+        
+        // Add fullscreen classes
+        modalDialog.classList.add('modal-fullscreen');
+        modalContent.classList.add('modal-fullscreen');
+        document.body.classList.add('modal-fullscreen-active');
+        
+        // Update toggle button
+        fullscreenToggle.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+        fullscreenToggle.setAttribute('title', 'Keluar Fullscreen');
+        fullscreenToggle.classList.remove('btn-light');
+        fullscreenToggle.classList.add('btn-warning');
+        
+        // Darker header in fullscreen for better contrast
+        modalHeader.classList.remove('bg-primary');
+        modalHeader.classList.add('bg-dark');
+        
+        // Hide other page elements
+        this.hidePageElements();
+        
+        this.showToast('Masuk ke mode fullscreen - tekan ESC untuk keluar', 'success');
+        
+        // Trigger resize untuk iframe
+        this.triggerIframeResize();
+    }
+
+    exitFullscreen() {
+        const modal = document.getElementById('previewModal');
+        const modalDialog = modal.querySelector('.modal-dialog');
+        const modalContent = modal.querySelector('.modal-content');
+        const fullscreenToggle = document.getElementById('fullscreenToggle');
+        const modalHeader = modal.querySelector('.modal-header');
+        
+        if (!modalDialog) return;
+        
+        // Remove fullscreen classes
+        modalDialog.classList.remove('modal-fullscreen');
+        modalContent.classList.remove('modal-fullscreen');
+        document.body.classList.remove('modal-fullscreen-active');
+        
+        // Update toggle button
+        fullscreenToggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+        fullscreenToggle.setAttribute('title', 'Fullscreen');
+        fullscreenToggle.classList.remove('btn-warning');
+        fullscreenToggle.classList.add('btn-light');
+        
+        // Restore header color
+        modalHeader.classList.remove('bg-dark');
+        modalHeader.classList.add('bg-primary');
+        
+        // Show other page elements
+        this.showPageElements();
+        
+        this.showToast('Keluar dari mode fullscreen', 'info');
+    }
+
+    hidePageElements() {
+        // Sembunyikan elemen halaman lainnya
+        const elementsToHide = [
+            '.navbar',
+            '.sidebar',
+            '.container-main',
+            '.card-shadow'
+        ];
+        
+        elementsToHide.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                el.style.display = 'none';
+            });
+        });
+    }
+
+    showPageElements() {
+        // Tampilkan kembali elemen halaman
+        const elementsToShow = [
+            '.navbar',
+            '.sidebar',
+            '.container-main',
+            '.card-shadow'
+        ];
+        
+        elementsToShow.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                el.style.display = '';
+            });
+        });
+    }
+
+    triggerIframeResize() {
+        const pdfIframe = document.getElementById('pdfIframe');
+        if (pdfIframe && pdfIframe.style.display !== 'none') {
+            // Force iframe resize
+            setTimeout(() => {
+                const iframeDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
+                if (iframeDoc) {
+                    pdfIframe.style.width = '100%';
+                    pdfIframe.style.height = '100%';
+                }
+            }, 100);
         }
     }
 
@@ -116,25 +249,86 @@ class TandaTerimaManager {
         const pdfFallback = document.getElementById('pdfFallback');
         
         // Reset states
-        if (pdfLoading) pdfLoading.style.display = 'flex';
-        if (pdfFallback) pdfFallback.style.display = 'none';
+        this.resetModalStates();
+        
+        if (pdfLoading) {
+            pdfLoading.style.display = 'flex';
+            pdfLoading.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                    <p class="mt-3 text-muted">Memuat dokumen PDF...</p>
+                    <small class="text-muted">ID: ${tandaTerimaId}</small>
+                </div>
+            `;
+        }
+        
         if (pdfIframe) {
             pdfIframe.style.display = 'none';
             pdfIframe.src = 'about:blank'; // Clear previous content
             
             // Set new source after a brief delay
             setTimeout(() => {
-                pdfIframe.src = `${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`;
-            }, 100);
+                pdfIframe.src = `${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+                document.getElementById('pdfInfo').textContent = 'PDF sedang dimuat...';
+            }, 300);
         }
         
-        // Fallback: hide loading after 5 seconds if iframe doesn't load
+        // Fallback timeout
         setTimeout(() => {
-            if (pdfLoading && pdfLoading.style.display !== 'none' && pdfIframe.style.display === 'none') {
-                pdfLoading.style.display = 'none';
-                if (pdfFallback) pdfFallback.style.display = 'block';
+            const pdfIframe = document.getElementById('pdfIframe');
+            if (pdfIframe && pdfIframe.style.display === 'none') {
+                if (pdfLoading) pdfLoading.style.display = 'none';
+                if (pdfFallback) {
+                    pdfFallback.style.display = 'flex';
+                }
+                document.getElementById('pdfInfo').textContent = 'Gagal memuat PDF';
             }
-        }, 5000);
+        }, 10000);
+    }
+
+    resetModalStates() {
+        const pdfLoading = document.getElementById('pdfLoading');
+        const pdfFallback = document.getElementById('pdfFallback');
+        const pdfIframe = document.getElementById('pdfIframe');
+        
+        if (pdfLoading) {
+            pdfLoading.style.display = 'none';
+        }
+        if (pdfFallback) {
+            pdfFallback.style.display = 'none';
+        }
+        if (pdfIframe) {
+            pdfIframe.style.display = 'none';
+        }
+    }
+
+    showToast(message, type = 'info') {
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll('.custom-toast');
+        existingToasts.forEach(toast => toast.remove());
+        
+        const toast = document.createElement('div');
+        toast.className = `custom-toast position-fixed top-0 end-0 p-3`;
+        toast.style.zIndex = '99999';
+        toast.innerHTML = `
+            <div class="toast align-items-center text-white bg-${type} border-0 show" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 3000);
     }
 
     initializeActionButtons() {
