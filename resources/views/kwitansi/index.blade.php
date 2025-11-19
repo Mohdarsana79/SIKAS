@@ -302,6 +302,159 @@
         color: #374151;
     }
 
+    /* Filter Date Styles */
+    .input-group-sm .input-group-text {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .input-group-sm .form-control {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    /* Filter Info Styles */
+    #filterInfo {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        border-left: 4px solid #17a2b8;
+    }
+
+    #filterInfo .badge {
+        font-size: 0.7rem;
+    }
+
+    /* Date Input Styling */
+    input[type="date"] {
+        position: relative;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    /* Filter Date Styles dengan efek interaktif */
+    .input-group-sm .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .input-group-sm .input-group-text {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: 1px solid #667eea;
+    }
+
+    /* Loading state untuk filter */
+    .filter-loading {
+        position: relative;
+    }
+
+    .filter-loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        width: 12px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-top: 2px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        transform: translateY(-50%);
+    }
+
+    @keyframes spin {
+        0% { transform: translateY(-50%) rotate(0deg); }
+        100% { transform: translateY(-50%) rotate(360deg); }
+    }
+
+    /* Hover effects untuk filter */
+    .input-group:hover .input-group-text {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+
+    /* Active filter state */
+    .form-control:not(:placeholder-shown) {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+
+    /* Date input khusus */
+    input[type="date"]:focus {
+        background-color: #f8f9ff;
+    }
+
+    /* Responsive Filter */
+    @media (max-width: 768px) {
+        .search-container .row.g-2 {
+            flex-wrap: wrap;
+        }
+        
+        .search-container .col-12 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .d-flex.gap-2 {
+            flex-direction: column;
+        }
+        
+        .d-flex.gap-2 .input-group {
+            width: 100% !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .search-container {
+            padding: 0.75rem;
+        }
+        
+        .d-flex.gap-2 {
+            flex-direction: column;
+        }
+        
+        .d-flex.gap-2 .input-group {
+            width: 100% !important;
+        }
+    }
+
+    /* Label Styles untuk Filter */
+    .form-label.small {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #6c757d !important;
+    }
+
+    /* Responsive untuk label */
+    @media (max-width: 768px) {
+        .d-flex.align-items-center.gap-1 {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+        
+        .d-flex.align-items-center.gap-1 .form-label {
+            min-width: auto !important;
+            font-size: 0.7rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .d-flex.align-items-center.gap-1 .input-group {
+            width: 100% !important;
+        }
+        
+        /* Tampilkan label di mobile juga */
+        .d-flex.align-items-center.gap-1 .form-label.d-none.d-md-block {
+            display: block !important;
+        }
+    }
+
     /* Pagination Sederhana */
     .pagination-simple {
         margin: 0;
@@ -863,12 +1016,41 @@
         </div>
     </div>
 
-    <!-- SEARCH DAN FILTER SECTION - UPDATED WITH SMALLER CONTROLS -->
+    <!-- SEARCH DAN FILTER SECTION - DITAMBAH FILTER TANGGAL -->
     <div class="search-container">
         <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-4 col-lg-3">
+            <!-- Filter Tanggal Mulai -->
+            <div class="col-12 col-md-3 col-lg-2">
                 <label class="form-label fw-semibold text-dark mb-1 small">
-                    <i class="bi bi-funnel me-1"></i>Tahun Anggaran
+                    <i class="bi bi-calendar-range me-1"></i>Mulai
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="bi bi-calendar-range text-muted"></i>
+                    </span>
+                    <input type="date" class="form-control form-control-modern form-control-sm border-start-0"
+                        id="startDate" placeholder="Mulai" aria-label="Tanggal mulai">
+                </div>
+            </div>
+    
+            <!-- Filter Tanggal Akhir -->
+            <div class="col-12 col-md-3 col-lg-2">
+                <label class="form-label fw-semibold text-dark mb-1 small">
+                    <i class="bi bi-calendar-range me-1"></i>Akhir
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0">
+                        <i class="bi bi-calendar-range text-muted"></i>
+                    </span>
+                    <input type="date" class="form-control form-control-modern form-control-sm border-start-0" id="endDate"
+                        placeholder="Akhir" aria-label="Tanggal akhir">
+                </div>
+            </div>
+    
+            <!-- Filter Tahun -->
+            <div class="col-12 col-md-3 col-lg-2">
+                <label class="form-label fw-semibold text-dark mb-1 small">
+                    <i class="bi bi-funnel me-1"></i>Tahun
                 </label>
                 <select class="form-select form-select-modern form-select-sm" id="tahunFilter">
                     <option value="">Semua Tahun</option>
@@ -879,7 +1061,9 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-8 col-lg-9">
+    
+            <!-- Search Input -->
+            <div class="col-12 col-md-6 col-lg-6">
                 <label class="form-label fw-semibold text-dark mb-1 small">
                     <i class="bi bi-search me-1"></i>Pencarian
                 </label>
@@ -890,11 +1074,22 @@
                     <input type="text"
                         class="form-control form-control-modern form-control-sm border-start-0 rounded-end-pill"
                         placeholder="Cari uraian, kode rekening, tanggal..." id="searchInput">
-                    <button class="btn btn-primary btn-sm rounded-pill ms-2 px-3" type="button" id="clearSearch">
-                        <i class="bi bi-x-circle me-1"></i>Clear
+                    <button class="btn btn-outline-secondary btn-sm rounded-pill ms-2 px-3" type="button" id="resetFilter">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Reset
+                    </button>
+                    <button class="btn btn-primary btn-sm rounded-pill ms-2 px-3" type="button" id="clearFilter">
+                        <i class="bi bi-x-circle me-1"></i>Clear All
                     </button>
                 </div>
             </div>
+        </div>
+    
+        <!-- Info Filter Aktif -->
+        <div id="filterInfo" class="mt-3 small" style="display: none;">
+            <span class="badge bg-info text-dark me-2">
+                <i class="bi bi-funnel me-1"></i> Filter Aktif
+            </span>
+            <span id="filterText" class="text-muted"></span>
         </div>
     </div>
 

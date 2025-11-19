@@ -80,6 +80,8 @@ class KwitansiController extends Controller
         try {
             $search = $request->input('search', '');
             $tahun = $request->input('tahun', '');
+            $startDate = $request->input('start_date', '');
+            $endDate = $request->input('end_date', '');
 
             // Query dengan filter tahun
             $query = Kwitansi::with([
@@ -92,6 +94,19 @@ class KwitansiController extends Controller
             // Filter berdasarkan tahun jika dipilih
             if ($tahun) {
                 $query->where('penganggaran_id', $tahun);
+            }
+
+            // Filter berdasarkan tanggal
+            if ($startDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($startDate) {
+                    $q->whereDate('tanggal_transaksi', '>=', $startDate);
+                });
+            }
+
+            if ($endDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($endDate) {
+                    $q->whereDate('tanggal_transaksi', '<=', $endDate);
+                });
             }
 
             // Filter pencarian
@@ -130,19 +145,29 @@ class KwitansiController extends Controller
                 ];
             });
 
+            // Prepare filter info for display
+            $filterInfo = [
+                'search' => $search,
+                'tahun' => $tahun,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'has_filters' => $search || $tahun || $startDate || $endDate,
+            ];
+
             return response()->json([
                 'success' => true,
                 'data' => $formattedKwitansis,
                 'total' => $kwitansis->total(),
                 'search_term' => $search,
                 'selected_tahun' => $tahun,
+                'filter_info' => $filterInfo,
                 'pagination' => [
                     'current_page' => $kwitansis->currentPage(),
                     'last_page' => $kwitansis->lastPage(),
                     'per_page' => $kwitansis->perPage(),
                     'total' => $kwitansis->total(),
                     'has_more' => $kwitansis->hasMorePages(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error searching kwitansi: ' . $e->getMessage());
@@ -358,11 +383,17 @@ class KwitansiController extends Controller
     }
 
     // Tambahkan method downloadAll di KwitansiController
-    public function downloadAll()
+    public function downloadAll(Request $request)
     {
         try {
-            // Ambil semua kwitansi dengan relasi yang diperlukan
-            $kwitansis = Kwitansi::with([
+            // Ambil parameter filter dari request
+            $search = $request->input('search', '');
+            $tahun = $request->input('tahun', '');
+            $startDate = $request->input('start_date', '');
+            $endDate = $request->input('end_date', '');
+
+            // Query dengan filter yang sama seperti search
+            $query = Kwitansi::with([
                 'sekolah',
                 'penganggaran',
                 'kodeKegiatan',
@@ -372,12 +403,45 @@ class KwitansiController extends Controller
                     $query->with(['uraianDetails']);
                 },
                 'bkuUraianDetail',
-            ])->latest()->get();
+            ]);
+
+            // Filter berdasarkan tahun jika dipilih
+            if ($tahun) {
+                $query->where('penganggaran_id', $tahun);
+            }
+
+            // Filter berdasarkan tanggal
+            if ($startDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($startDate) {
+                    $q->whereDate('tanggal_transaksi', '>=', $startDate);
+                });
+            }
+
+            if ($endDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($endDate) {
+                    $q->whereDate('tanggal_transaksi', '<=', $endDate);
+                });
+            }
+
+            // Filter pencarian
+            if ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->whereHas('bukuKasUmum', function ($q) use ($search) {
+                        $q->where('uraian', 'ILIKE', "%{$search}%")
+                            ->orWhere('uraian_opsional', 'ILIKE', "%{$search}%");
+                    })
+                        ->orWhereHas('rekeningBelanja', function ($q) use ($search) {
+                            $q->where('kode_rekening', 'ILIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            $kwitansis = $query->latest()->get();
 
             // Jika tidak ada data
             if ($kwitansis->isEmpty()) {
                 return redirect()->route('kwitansi.index')
-                    ->with('error', 'Tidak ada data kwitansi untuk diunduh');
+                    ->with('error', 'Tidak ada data kwitansi untuk diunduh dengan filter yang dipilih');
             }
 
             // Siapkan data untuk PDF
@@ -407,21 +471,67 @@ class KwitansiController extends Controller
                 'kwitansis' => $kwitansiData,
                 'totalKwitansi' => $kwitansis->count(),
                 'tanggalDownload' => now()->format('d/m/Y H:i'),
+                'filterInfo' => [
+                    'search' => $search,
+                    'tahun' => $tahun,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'has_filter' => $search || $tahun || $startDate || $endDate
+                ]
             ];
 
             // Generate PDF
             $pdf = PDF::loadView('kwitansi.download-all', $data);
             $pdf->setPaper('Folio', 'portrait');
 
-            $filename = 'Kwitansi_All_' . now()->format('Y-m-d_H-i-s') . '.pdf';
+            // Generate filename berdasarkan filter
+            $filename = $this->generateDownloadFilename($search, $tahun, $startDate, $endDate, $kwitansis->count());
 
             return $pdf->download($filename);
         } catch (\Exception $e) {
             Log::error('Error downloading all kwitansi: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
 
             return redirect()->route('kwitansi.index')
                 ->with('error', 'Gagal mengunduh semua kwitansi: ' . $e->getMessage());
         }
+    }
+
+    // Helper method untuk generate filename berdasarkan filter
+    private function generateDownloadFilename($search, $tahun, $startDate, $endDate, $count)
+    {
+        $baseName = 'Kwitansi';
+        $parts = [];
+
+        // Tambahkan info count
+        $parts[] = $count . 'data';
+
+        // Tambahkan info tahun
+        if ($tahun) {
+            $tahunSelect = \App\Models\Penganggaran::find($tahun);
+            if ($tahunSelect) {
+                $parts[] = 'Tahun_' . $tahunSelect->tahun_anggaran;
+            }
+        }
+
+        // Tambahkan info tanggal
+        if ($startDate && $endDate) {
+            $start = \Carbon\Carbon::parse($startDate)->format('d-m-Y');
+            $end = \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+            $parts[] = $start . '_sd_' . $end;
+        } elseif ($startDate) {
+            $parts[] = 'dari_' . \Carbon\Carbon::parse($startDate)->format('d-m-Y');
+        } elseif ($endDate) {
+            $parts[] = 'sampai_' . \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+        }
+
+        // Tambahkan timestamp
+        $parts[] = now()->format('Y-m-d_H-i-s');
+
+        $filename = $baseName . '_' . implode('_', $parts) . '.pdf';
+
+        // Hapus karakter yang tidak valid untuk filename
+        return preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
     }
 
     // PERBAIKAN: Method klasifikasiPajak yang lebih robust

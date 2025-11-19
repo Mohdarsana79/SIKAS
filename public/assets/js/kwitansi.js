@@ -8,6 +8,8 @@ class KwitansiManager {
     constructor() {
         this.currentFilters = {
             search: '',
+            startDate: '',
+            endDate: '',
             tahun: ''
         };
         this.searchTimeout = null;
@@ -47,6 +49,7 @@ class KwitansiManager {
         this.checkAvailableData();
         this.updateLastUpdated();
         this.initializeModalHandlers();
+        this.initializeDateFilters();
         
         // Start periodic updates
         this.startPeriodicUpdates();
@@ -55,50 +58,202 @@ class KwitansiManager {
     }
 
     initializeEventListeners() {
-        console.log('🚀 Initializing Kwitansi Manager Event Listeners...');
-        
-        // Search and Filter
+        // Search functionality dengan debounce
         const searchInput = document.getElementById('searchInput');
         const tahunFilter = document.getElementById('tahunFilter');
-        const clearSearchBtn = document.getElementById('clearSearch');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
 
         if (searchInput) {
-            let searchTimeout;
             searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    this.performSearch(e.target.value, tahunFilter?.value || '');
+                this.currentFilters.search = e.target.value;
+                
+                // Clear existing timeout
+                if (this.searchTimeout) {
+                    clearTimeout(this.searchTimeout);
+                }
+                
+                // Set new timeout untuk debounce
+                this.searchTimeout = setTimeout(() => {
+                    this.performSearchWithFilters();
                 }, 500);
             });
         }
 
         if (tahunFilter) {
             tahunFilter.addEventListener('change', () => {
-                this.performSearch(searchInput?.value || '', tahunFilter.value);
+                this.currentFilters.tahun = tahunFilter.value;
+                this.performSearchWithFilters();
             });
         }
 
-        if (clearSearchBtn) {
-            clearSearchBtn.addEventListener('click', () => {
-                if (searchInput) searchInput.value = '';
-                if (tahunFilter) tahunFilter.value = '';
-                this.performSearch('', '');
+        if (startDateInput) {
+            startDateInput.addEventListener('change', (e) => {
+                this.currentFilters.startDate = e.target.value;
+                this.validateDateRange();
+                this.debouncedSearch();
             });
         }
 
-        // Action Buttons
+        if (endDateInput) {
+            endDateInput.addEventListener('change', (e) => {
+                this.currentFilters.endDate = e.target.value;
+                this.validateDateRange();
+                this.debouncedSearch();
+            });
+        }
+
+        // Action buttons
         this.initializeActionButtons();
         
-        // Generate from empty state
-        const generateEmptyBtn = document.getElementById('generate-empty-btn');
-        if (generateEmptyBtn) {
-            generateEmptyBtn.addEventListener('click', () => {
-                this.generateAllKwitansi();
+        // Event listener untuk clear search filters dari empty state
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'clear-search-filters') {
+                e.preventDefault();
+                this.clearAllFilters();
+            }
+        });
+    }
+
+    performSearchWithFilters() {
+        this.performSearch(
+            this.currentFilters.search,
+            this.currentFilters.tahun,
+            this.currentFilters.startDate,
+            this.currentFilters.endDate
+        );
+    }
+
+    // ==================== FILTER TANGGAL ====================
+
+    initializeDateFilters() {
+        // Set default dates (30 days ago to today)
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const resetFilterBtn = document.getElementById('resetFilter');
+        const clearFilterBtn = document.getElementById('clearFilter');
+        
+        // Event listeners for date inputs - AUTO SEARCH
+        if (startDateInput) {
+            startDateInput.addEventListener('change', (e) => {
+                this.currentFilters.startDate = e.target.value;
+                this.validateDateRange();
+                // Auto search setelah perubahan tanggal
+                this.debouncedSearch();
             });
         }
+        
+        if (endDateInput) {
+            endDateInput.addEventListener('change', (e) => {
+                this.currentFilters.endDate = e.target.value;
+                this.validateDateRange();
+                // Auto search setelah perubahan tanggal
+                this.debouncedSearch();
+            });
+        }
+        
+        // Reset filter button (hanya tanggal)
+        if (resetFilterBtn) {
+            resetFilterBtn.addEventListener('click', () => {
+                this.resetDateFilters();
+            });
+        }
+        
+        // Clear all filters button
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', () => {
+                this.clearAllFilters();
+            });
+        }
+        
+        // Initial filter update
+        this.updateFilterInfo();
+    }
 
-        // PERBAIKAN: Inisialisasi pagination untuk halaman pertama
-        this.attachPaginationEventListeners();
+    // Tambahkan debounce function untuk search
+    debouncedSearch() {
+        if (this.searchTimeout) {
+            clearTimeout(this.searchTimeout);
+        }
+        this.searchTimeout = setTimeout(() => {
+            this.performSearchWithFilters();
+        }, 300);
+    }
+
+    validateDateRange() {
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        
+        if (startDate.value && endDate.value) {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            
+            if (start > end) {
+                this.showError('Tanggal Tidak Valid', 'Tanggal mulai tidak boleh lebih besar dari tanggal akhir');
+                // Auto correct dan search
+                endDate.value = startDate.value;
+                this.currentFilters.endDate = endDate.value;
+                this.performSearchWithFilters();
+            }
+        }
+    }
+
+    resetDateFilters() {
+        // Reset dates ke KOSONG
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        
+        if (startDateInput) {
+            startDateInput.value = '';
+            this.currentFilters.startDate = '';
+        }
+        
+        if (endDateInput) {
+            endDateInput.value = '';
+            this.currentFilters.endDate = '';
+        }
+        
+        // Auto search setelah reset
+        this.performSearchWithFilters();
+        this.showToast('Filter tanggal direset', 'info');
+    }
+
+    clearAllFilters() {
+        // Reset search
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            this.currentFilters.search = '';
+        }
+        
+        // Reset tahun
+        const tahunFilter = document.getElementById('tahunFilter');
+        if (tahunFilter) {
+            tahunFilter.value = '';
+            this.currentFilters.tahun = '';
+        }
+        
+        // Reset dates ke KOSONG (bukan default 30 hari)
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        
+        if (startDateInput) {
+            startDateInput.value = '';
+            this.currentFilters.startDate = '';
+        }
+        
+        if (endDateInput) {
+            endDateInput.value = '';
+            this.currentFilters.endDate = '';
+        }
+        
+        // Auto search dengan filter kosong (tampilkan semua data)
+        this.performSearchWithFilters();
+        this.showToast('Semua filter telah dihapus, menampilkan semua data', 'success');
     }
 
     initializeModalHandlers() {
@@ -463,6 +618,14 @@ class KwitansiManager {
             });
         }
 
+        // Download All
+        const downloadAllBtn = document.getElementById('download-all-btn');
+        if (downloadAllBtn) {
+            downloadAllBtn.addEventListener('click', (e) => {
+                this.handleDownloadAll(e);
+            });
+        }
+
         // Delete All
         const deleteAllBtn = document.getElementById('delete-all-btn');
         if (deleteAllBtn) {
@@ -472,11 +635,11 @@ class KwitansiManager {
             });
         }
 
-        // Download All
-        const downloadAllBtn = document.getElementById('download-all-btn');
-        if (downloadAllBtn) {
-            downloadAllBtn.addEventListener('click', (e) => {
-                this.handleDownloadAll(e);
+        // Generate from empty state
+        const generateEmptyBtn = document.getElementById('generate-empty-btn');
+        if (generateEmptyBtn) {
+            generateEmptyBtn.addEventListener('click', () => {
+                this.generateAllKwitansi();
             });
         }
 
@@ -488,6 +651,12 @@ class KwitansiManager {
                 const kwitansiId = button.getAttribute('data-id');
                 const uraian = button.getAttribute('data-uraian');
                 this.deleteSingleKwitansi(kwitansiId, uraian);
+            }
+            
+            // Clear search filters dari empty state
+            if (e.target.id === 'clear-search-filters') {
+                e.preventDefault();
+                this.clearAllFilters();
             }
         });
     }
@@ -507,44 +676,138 @@ class KwitansiManager {
 
     // ==================== SEARCH & FILTER ====================
 
-    async performSearch(searchTerm = '', tahun = '') {
+    async performSearch(searchTerm = '', tahun = '', startDate = '', endDate = '') {
         try {
-            console.log('🔍 Performing search:', { searchTerm, tahun });
             this.showLoadingState('search');
+            this.showFilterLoading();
             
             let url = `${this.getBaseUrl()}/kwitansi/search?search=${encodeURIComponent(searchTerm)}`;
+            
+            // Add tahun filter
             if (tahun) {
                 url += `&tahun=${encodeURIComponent(tahun)}`;
             }
+            
+            // Add date filters
+            if (startDate) {
+                url += `&start_date=${encodeURIComponent(startDate)}`;
+            }
+            
+            if (endDate) {
+                url += `&end_date=${encodeURIComponent(endDate)}`;
+            }
 
-            console.log('📡 Fetch URL:', url);
+            console.log('Search URL dengan filter:', url);
 
             const response = await fetch(url);
             const data = await response.json();
 
-            console.log('📦 Response data:', data);
-
             if (data.success) {
-                console.log('✅ Search successful, updating results...');
                 this.updateSearchResults(data.data, data.pagination);
                 this.updateCounters(data.total);
                 this.updateTableCount(data.total);
+                this.updateFilterInfo(data.filter_info);
                 
-                // Update tahun filter if needed
-                const tahunFilter = document.getElementById('tahunFilter');
-                if (tahunFilter && data.selected_tahun) {
-                    tahunFilter.value = data.selected_tahun;
+                // Show result count toast untuk filter non-search
+                if (!searchTerm && (startDate || endDate || tahun)) {
+                    this.showResultCount(data.total);
                 }
             } else {
-                console.error('❌ Search failed:', data.message);
                 this.showError('Search failed', data.message);
             }
         } catch (error) {
-            console.error('💥 Search error:', error);
+            console.error('Search error:', error);
             this.showError('Search Error', 'Terjadi kesalahan saat mencari data');
         } finally {
             this.hideLoadingState('search');
+            this.hideFilterLoading();
         }
+    }
+
+    showResultCount(count) {
+        let message = `Ditemukan ${count} data`;
+        
+        // Tambahkan info filter spesifik
+        const filters = [];
+        
+        if (this.currentFilters.startDate && this.currentFilters.endDate) {
+            const start = this.formatDateDisplay(this.currentFilters.startDate);
+            const end = this.formatDateDisplay(this.currentFilters.endDate);
+            filters.push(`periode ${start} - ${end}`);
+        }
+        
+        if (this.currentFilters.tahun) {
+            const tahunSelect = document.getElementById('tahunFilter');
+            const selectedOption = tahunSelect ? tahunSelect.options[tahunSelect.selectedIndex] : null;
+            if (selectedOption) {
+                filters.push(`tahun ${selectedOption.text}`);
+            }
+        }
+        
+        if (filters.length > 0) {
+            message += ` untuk ${filters.join(' dan ')}`;
+        }
+        
+        this.showToast(message, 'info');
+    }
+
+    updateFilterInfo(filterInfo = null) {
+        const filterInfoElement = document.getElementById('filterInfo');
+        const filterTextElement = document.getElementById('filterText');
+        
+        if (!filterInfoElement || !filterTextElement) return;
+        
+        const hasActiveFilters = 
+            this.currentFilters.search || 
+            this.currentFilters.tahun || 
+            this.currentFilters.startDate || 
+            this.currentFilters.endDate;
+        
+        if (hasActiveFilters) {
+            let filterText = '';
+            const filters = [];
+            
+            // Search filter
+            if (this.currentFilters.search) {
+                filters.push(`Pencarian: "${this.currentFilters.search}"`);
+            }
+            
+            // Tahun filter
+            if (this.currentFilters.tahun) {
+                const tahunSelect = document.getElementById('tahunFilter');
+                const selectedOption = tahunSelect ? tahunSelect.options[tahunSelect.selectedIndex] : null;
+                const tahunText = selectedOption ? selectedOption.text : this.currentFilters.tahun;
+                filters.push(`Tahun: ${tahunText}`);
+            }
+            
+            // Date filters
+            if (this.currentFilters.startDate && this.currentFilters.endDate) {
+                const start = this.formatDateDisplay(this.currentFilters.startDate);
+                const end = this.formatDateDisplay(this.currentFilters.endDate);
+                filters.push(`Tanggal: ${start} - ${end}`);
+            } else if (this.currentFilters.startDate) {
+                filters.push(`Dari: ${this.formatDateDisplay(this.currentFilters.startDate)}`);
+            } else if (this.currentFilters.endDate) {
+                filters.push(`Sampai: ${this.formatDateDisplay(this.currentFilters.endDate)}`);
+            }
+            
+            filterText = filters.join(' | ');
+            filterTextElement.textContent = filterText;
+            filterInfoElement.style.display = 'block';
+        } else {
+            filterInfoElement.style.display = 'none';
+        }
+    }
+
+    formatDateDisplay(dateString) {
+        if (!dateString) return '';
+        
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
     }
 
     // ==================== SEARCH & FILTER ====================
@@ -572,6 +835,9 @@ class KwitansiManager {
         this.updatePagination(pagination);
         this.reinitializeTooltips();
         this.reattachDeleteListeners();
+        
+        // Update filter info setelah hasil search
+        this.updateFilterInfo();
     }
 
     hidePagination() {
@@ -590,6 +856,7 @@ class KwitansiManager {
     }
 
     getTableRowHTML(item, number, pagination) {
+        // PERBAIKAN: Gunakan data dari item yang sudah diformat
         return `
             <tr id="kwitansi-row-${item.id}" class="animate__animated animate__fadeIn">
                 <td class="fw-medium text-dark">${number}</td>
@@ -610,6 +877,7 @@ class KwitansiManager {
                 </td>
                 <td class="text-center">
                     <div class="d-flex justify-content-center gap-2">
+                        <!-- Preview Button - Modal Trigger -->
                         <button class="btn btn-action btn-outline-primary preview-kwitansi" 
                                 title="Lihat Preview" 
                                 data-id="${item.id}"
@@ -617,11 +885,13 @@ class KwitansiManager {
                                 data-bs-target="#previewModal">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <!-- Download PDF -->
                         <a href="${this.getBaseUrl()}/kwitansi/${item.id}/pdf" 
                             class="btn btn-action btn-outline-success" 
                             title="Download PDF" data-bs-toggle="tooltip" target="_blank">
-                            <i class="bi bi-printer"></i>
+                            <i class="bi bi-download"></i>
                         </a>
+                        <!-- Hapus -->
                         <button class="btn btn-action btn-outline-danger delete-kwitansi" 
                             data-id="${item.id}"
                             data-uraian="${item.uraian}"
@@ -635,17 +905,43 @@ class KwitansiManager {
     }
 
     getEmptySearchHTML() {
-        return `
-            <tr>
-                <td colspan="6" class="text-center py-5">
-                    <div class="empty-state" style="padding: 2rem; background: transparent; border: none;">
-                        <i class="bi bi-search empty-state-icon" style="font-size: 3rem;"></i>
-                        <h5 class="text-dark mb-2">Tidak ada data yang ditemukan</h5>
-                        <p class="text-muted">Coba ubah kata kunci pencarian atau filter tahun</p>
-                    </div>
-                </td>
-            </tr>
-        `;
+        const hasActiveFilters = 
+            this.currentFilters.search || 
+            this.currentFilters.tahun || 
+            this.currentFilters.startDate || 
+            this.currentFilters.endDate;
+        
+        if (hasActiveFilters) {
+            return `
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <div class="empty-state" style="padding: 2rem; background: transparent; border: none;">
+                            <i class="bi bi-search empty-state-icon" style="font-size: 3rem;"></i>
+                            <h5 class="text-dark mb-2">Tidak ada data yang ditemukan</h5>
+                            <p class="text-muted">Coba ubah kata kunci pencarian atau filter yang digunakan</p>
+                            <button class="btn btn-primary mt-3" id="clear-search-filters">
+                                <i class="bi bi-x-circle me-2"></i>Hapus Semua Filter
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            return `
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <div class="empty-state" style="padding: 2rem; background: transparent; border: none;">
+                            <i class="bi bi-file-earmark-x empty-state-icon" style="font-size: 3rem;"></i>
+                            <h4 class="text-dark mb-3">Belum ada data kwitansi</h4>
+                            <p class="text-muted mb-4">Mulai dengan membuat kwitansi baru atau generate otomatis dari data yang tersedia.</p>
+                            <button class="btn btn-primary btn-modern" id="generate-empty-btn">
+                                <i class="bi bi-magic me-2"></i>Generate Kwitansi Otomatis
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
     }
 
     // ==================== PAGINATION HANDLING ====================
@@ -891,17 +1187,19 @@ class KwitansiManager {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     console.log('🖱️ Pagination link clicked, loading page:', page);
-                    const searchTerm = document.getElementById('searchInput')?.value || '';
-                    const selectedTahun = document.getElementById('tahunFilter')?.value || '';
+                    const searchTerm = this.currentFilters.search;
+                    const selectedTahun = this.currentFilters.tahun;
+                    const startDate = this.currentFilters.startDate;
+                    const endDate = this.currentFilters.endDate;
                     
-                    this.loadPage(page, searchTerm, selectedTahun);
+                    this.loadPage(page, searchTerm, selectedTahun, startDate, endDate);
                 });
             }
         });
     }
 
-    // PERBAIKAN: Method loadPage yang lebih baik
-    async loadPage(page, searchTerm = '', tahun = '') {
+    // ==================== PAGINATION HANDLING ====================
+    async loadPage(page, searchTerm = '', tahun = '', startDate = '', endDate = '') {
         try {
             console.log('📄 Loading page:', page);
             this.showLoadingState('search');
@@ -912,6 +1210,12 @@ class KwitansiManager {
             }
             if (tahun) {
                 url += `&tahun=${encodeURIComponent(tahun)}`;
+            }
+            if (startDate) {
+                url += `&start_date=${encodeURIComponent(startDate)}`;
+            }
+            if (endDate) {
+                url += `&end_date=${encodeURIComponent(endDate)}`;
             }
 
             console.log('📡 Loading URL:', url);
@@ -1313,59 +1617,219 @@ class KwitansiManager {
     // ==================== DOWNLOAD FUNCTIONALITY ====================
 
     handleDownloadAll(e) {
-        const downloadAllBtn = e.currentTarget;
-        
-        if (downloadAllBtn.hasAttribute('disabled')) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'info',
-                title: 'Tidak ada data',
-                text: 'Tidak ada data kwitansi untuk diunduh'
-            });
-            return;
-        }
-
         e.preventDefault();
         
+        // Tampilkan modal konfirmasi dengan filter
+        this.showDownloadConfirmation();
+    }
+
+    showDownloadConfirmation() {
+        const hasActiveFilters = 
+            this.currentFilters.search || 
+            this.currentFilters.tahun || 
+            this.currentFilters.startDate || 
+            this.currentFilters.endDate;
+        
+        let downloadMessage = '';
+        let downloadUrl = `${this.getBaseUrl()}/kwitansi/download-all`;
+        
+        // Build message berdasarkan filter aktif
+        if (hasActiveFilters) {
+            downloadMessage = `<div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Download dengan Filter Aktif</strong>
+                <hr class="my-2">
+                <div class="small">`;
+            
+            const filters = [];
+            
+            if (this.currentFilters.search) {
+                filters.push(`Pencarian: <strong>"${this.currentFilters.search}"</strong>`);
+            }
+            
+            if (this.currentFilters.tahun) {
+                const tahunSelect = document.getElementById('tahunFilter');
+                const selectedOption = tahunSelect ? tahunSelect.options[tahunSelect.selectedIndex] : null;
+                const tahunText = selectedOption ? selectedOption.text : this.currentFilters.tahun;
+                filters.push(`Tahun: <strong>${tahunText}</strong>`);
+            }
+            
+            if (this.currentFilters.startDate && this.currentFilters.endDate) {
+                const start = this.formatDateDisplay(this.currentFilters.startDate);
+                const end = this.formatDateDisplay(this.currentFilters.endDate);
+                filters.push(`Tanggal: <strong>${start} - ${end}</strong>`);
+            } else if (this.currentFilters.startDate) {
+                filters.push(`Dari: <strong>${this.formatDateDisplay(this.currentFilters.startDate)}</strong>`);
+            } else if (this.currentFilters.endDate) {
+                filters.push(`Sampai: <strong>${this.formatDateDisplay(this.currentFilters.endDate)}</strong>`);
+            }
+            
+            downloadMessage += filters.join('<br>');
+            downloadMessage += `</div></div>`;
+            
+            // Tambahkan parameter filter ke URL download
+            downloadUrl += '?' + new URLSearchParams({
+                search: this.currentFilters.search,
+                tahun: this.currentFilters.tahun,
+                start_date: this.currentFilters.startDate,
+                end_date: this.currentFilters.endDate
+            }).toString();
+            
+        } else {
+            downloadMessage = `<div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Download Semua Data</strong>
+                <hr class="my-2">
+                <div class="small">
+                    Anda akan mendownload <strong>semua kwitansi</strong> tanpa filter.
+                </div>
+            </div>`;
+        }
+        
+        // Tampilkan modal konfirmasi
         Swal.fire({
-            title: 'Download Semua Kwitansi?',
+            title: 'Konfirmasi Download',
             html: `
-                <div class="alert alert-info text-left">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    <strong>Informasi Download</strong>
-                    <hr>
-                    <p>Anda akan mengunduh <strong>${document.getElementById('total-kwitansi').textContent} kwitansi</strong> dalam satu file PDF.</p>
-                    <p class="mb-0">Proses ini mungkin membutuhkan waktu beberapa saat tergantung jumlah data.</p>
+                <div class="text-left">
+                    ${downloadMessage}
+                    <div class="mt-3 p-3 border rounded bg-light">
+                        <h6 class="mb-2"><i class="bi bi-gear me-2"></i>Opsi Download:</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="downloadOption" id="downloadWithFilter" value="with_filter" ${hasActiveFilters ? 'checked' : ''}>
+                            <label class="form-check-label small" for="downloadWithFilter">
+                                Download dengan filter saat ini
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="downloadOption" id="downloadAll" value="all" ${!hasActiveFilters ? 'checked' : ''}>
+                            <label class="form-check-label small" for="downloadAll">
+                                Download semua data (abaikan filter)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="changeFilterBtn">
+                            <i class="bi bi-funnel me-1"></i>Ubah Filter
+                        </button>
+                    </div>
                 </div>
             `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#17a2b8',
+            confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-download mr-1"></i> Download',
-            cancelButtonText: '<i class="fas fa-times mr-1"></i> Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'Mempersiapkan Download...',
-                    html: `
-                        <div class="text-center">
-                            <div class="spinner-border text-info mb-3" style="width: 2rem; height: 2rem;"></div>
-                            <p>Sedang menyiapkan file PDF...</p>
-                        </div>
-                    `,
-                    showConfirmButton: false,
-                    allowOutsideClick: false
-                });
-
-                window.location.href = downloadAllBtn.href;
+            confirmButtonText: '<i class="bi bi-download me-1"></i> Download Sekarang',
+            cancelButtonText: '<i class="bi bi-x-circle me-1"></i> Batal',
+            reverseButtons: true,
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                const selectedOption = document.querySelector('input[name="downloadOption"]:checked').value;
                 
-                setTimeout(() => {
-                    Swal.close();
-                }, 3000);
+                if (selectedOption === 'all') {
+                    // Download semua data tanpa filter
+                    return this.processDownloadAll(`${this.getBaseUrl()}/kwitansi/download-all`);
+                } else {
+                    // Download dengan filter
+                    return this.processDownloadAll(downloadUrl);
+                }
+            },
+            didOpen: () => {
+                // Handle tombol ubah filter
+                const changeFilterBtn = document.getElementById('changeFilterBtn');
+                if (changeFilterBtn) {
+                    changeFilterBtn.addEventListener('click', () => {
+                        Swal.close();
+                        // Focus ke search input untuk memudahkan ubah filter
+                        const searchInput = document.getElementById('searchInput');
+                        if (searchInput) {
+                            searchInput.focus();
+                        }
+                    });
+                }
+                
+                // Handle perubahan opsi download
+                const downloadOptions = document.querySelectorAll('input[name="downloadOption"]');
+                downloadOptions.forEach(option => {
+                    option.addEventListener('change', (e) => {
+                        const selectedValue = e.target.value;
+                        const confirmButton = Swal.getConfirmButton();
+                        
+                        if (selectedValue === 'all') {
+                            confirmButton.innerHTML = '<i class="bi bi-download me-1"></i> Download Semua Data';
+                        } else {
+                            confirmButton.innerHTML = '<i class="bi bi-download me-1"></i> Download dengan Filter';
+                        }
+                    });
+                });
             }
         });
+    }
+
+    async processDownloadAll(downloadUrl) {
+        try {
+            // Show loading
+            Swal.fire({
+                title: 'Mempersiapkan Download...',
+                html: `
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-3" style="width: 2rem; height: 2rem;"></div>
+                        <p class="small mb-0">Menyiapkan file PDF untuk download</p>
+                        <div class="progress mt-2" style="height: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                didOpen: () => {
+                    // Start download setelah modal terbuka
+                    setTimeout(() => {
+                        window.open(downloadUrl, '_blank');
+                        
+                        // Tutup loading setelah 2 detik
+                        setTimeout(() => {
+                            Swal.close();
+                            
+                            // Tampilkan success message
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Download Dimulai!',
+                                html: `
+                                    <div class="text-center">
+                                        <i class="bi bi-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                                        <p class="small">File sedang didownload.<br>Periksa folder download atau tab baru browser Anda.</p>
+                                    </div>
+                                `,
+                                confirmButtonText: '<i class="bi bi-check me-1"></i> Mengerti',
+                                timer: 5000,
+                                showConfirmButton: true
+                            });
+                        }, 2000);
+                    }, 500);
+                }
+            });
+
+        } catch (error) {
+            console.error('Download all error:', error);
+            Swal.close();
+            this.showError('Download Error', 'Terjadi kesalahan saat mengunduh: ' + error.message);
+        }
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+
+    showFilterLoading() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.parentElement.classList.add('filter-loading');
+        }
+    }
+
+    hideFilterLoading() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.parentElement.classList.remove('filter-loading');
+        }
     }
 
     // ==================== UTILITY FUNCTIONS ====================
