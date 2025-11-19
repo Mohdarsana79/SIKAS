@@ -93,6 +93,8 @@ class TandaTerimaController extends Controller
         try {
             $search = $request->input('search', '');
             $tahun = $request->input('tahun', '');
+            $startDate = $request->input('start_date', '');
+            $endDate = $request->input('end_date', '');
 
             // Query dengan filter tahun
             $query = TandaTerima::with([
@@ -105,6 +107,19 @@ class TandaTerimaController extends Controller
             // Filter berdasarkan tahun jika dipilih
             if ($tahun) {
                 $query->where('penganggaran_id', $tahun);
+            }
+
+            // Filter berdasarkan tanggal
+            if ($startDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($startDate) {
+                    $q->whereDate('tanggal_transaksi', '>=', $startDate);
+                });
+            }
+
+            if ($endDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($endDate) {
+                    $q->whereDate('tanggal_transaksi', '<=', $endDate);
+                });
             }
 
             // Filter pencarian
@@ -143,12 +158,22 @@ class TandaTerimaController extends Controller
                 ];
             });
 
+            // Prepare filter info for display
+            $filterInfo = [
+                'search' => $search,
+                'tahun' => $tahun,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'has_filters' => $search || $tahun || $startDate || $endDate,
+            ];
+
             return response()->json([
                 'success' => true,
                 'data' => $formattedTandaTerimas,
                 'total' => $tandaTerimas->total(),
                 'search_term' => $search,
                 'selected_tahun' => $tahun,
+                'filter_info' => $filterInfo,
                 'pagination' => [
                     'current_page' => $tandaTerimas->currentPage(),
                     'last_page' => $tandaTerimas->lastPage(),
@@ -587,7 +612,7 @@ class TandaTerimaController extends Controller
     public function previewPdf($id)
     {
         try {
-            Log::info('Starting PDF preview for tanda terima ID: ' . $id);
+            Log::info('Starting PDF preview for tanda terima ID: '.$id);
 
             $tandaTerima = TandaTerima::with([
                 'sekolah',
@@ -598,7 +623,7 @@ class TandaTerimaController extends Controller
                 'bukuKasUmum',
             ])->findOrFail($id);
 
-            Log::info('Tanda terima found: ' . $tandaTerima->id);
+            Log::info('Tanda terima found: '.$tandaTerima->id);
 
             $kodeKegiatan = $tandaTerima->kodeKegiatan;
             $rekeningBelanja = $tandaTerima->rekeningBelanja;
@@ -631,20 +656,20 @@ class TandaTerimaController extends Controller
             $pdf = PDF::loadView('tanda-terima.pdf', $data);
             $pdf->setPaper('folio', 'landscape');
 
-            Log::info('PDF generated successfully for ID: ' . $id);
+            Log::info('PDF generated successfully for ID: '.$id);
 
             // Return PDF sebagai response dengan header yang tepat untuk preview
-            return $pdf->stream('Tanda_Terima_Preview_' . $tandaTerima->id . '.pdf', [
+            return $pdf->stream('Tanda_Terima_Preview_'.$tandaTerima->id.'.pdf', [
                 'Content-Type' => 'application/pdf',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error generating preview PDF for ID ' . $id . ': ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error generating preview PDF for ID '.$id.': '.$e->getMessage());
+            Log::error('Stack trace: '.$e->getTraceAsString());
 
             // Return error response
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate preview PDF: ' . $e->getMessage()
+                'message' => 'Gagal generate preview PDF: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -703,23 +728,70 @@ class TandaTerimaController extends Controller
     }
 
     // Method downloadAll - untuk download semua tanda terima dalam satu PDF
-    public function downloadAll()
+    public function downloadAll(Request $request)
     {
         try {
-            // Ambil semua tanda terima dengan relasi yang diperlukan
-            $tandaTerimas = TandaTerima::with([
+            // Ambil parameter filter dari request
+            $search = $request->input('search', '');
+            $tahun = $request->input('tahun', '');
+            $startDate = $request->input('start_date', '');
+            $endDate = $request->input('end_date', '');
+
+            // Query dengan filter yang sama seperti search
+            $query = TandaTerima::with([
                 'sekolah',
                 'penganggaran',
                 'kodeKegiatan',
                 'rekeningBelanja',
                 'penerimaanDana',
                 'bukuKasUmum',
-            ])->latest()->get();
+            ]);
+
+            // Filter berdasarkan tahun jika dipilih
+            if ($tahun) {
+                $query->where('penganggaran_id', $tahun);
+            }
+
+            // Filter berdasarkan tanggal
+            if ($startDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($startDate) {
+                    $q->whereDate('tanggal_transaksi', '>=', $startDate);
+                });
+            }
+
+            if ($endDate) {
+                $query->whereHas('bukuKasUmum', function ($q) use ($endDate) {
+                    $q->whereDate('tanggal_transaksi', '<=', $endDate);
+                });
+            }
+
+            // Filter pencarian
+            if ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->whereHas('bukuKasUmum', function ($q) use ($search) {
+                        $q->where('uraian', 'ILIKE', "%{$search}%")
+                            ->orWhere('uraian_opsional', 'ILIKE', "%{$search}%");
+                    })
+                        ->orWhereHas('rekeningBelanja', function ($q) use ($search) {
+                            $q->where('kode_rekening', 'ILIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            $tandaTerimas = $query->latest()->get();
 
             // Jika tidak ada data
             if ($tandaTerimas->isEmpty()) {
+                // Return JSON error untuk AJAX
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tidak ada data tanda terima untuk diunduh dengan filter yang dipilih'
+                    ], 404);
+                }
+
                 return redirect()->route('tanda-terima.index')
-                    ->with('error', 'Tidak ada data tanda terima untuk diunduh');
+                    ->with('error', 'Tidak ada data tanda terima untuk diunduh dengan filter yang dipilih');
             }
 
             // Siapkan data untuk PDF
@@ -761,22 +833,75 @@ class TandaTerimaController extends Controller
                 'totalTandaTerima' => $tandaTerimas->count(),
                 'tanggalDownload' => now()->format('d/m/Y H:i'),
                 'sekolah' => Sekolah::first(),
+                'filterInfo' => [
+                    'search' => $search,
+                    'tahun' => $tahun,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'has_filter' => $search || $tahun || $startDate || $endDate
+                ]
             ];
 
             // Generate PDF
             $pdf = PDF::loadView('tanda-terima.download-all', $data);
             $pdf->setPaper('folio', 'landscape');
 
-            $filename = 'Tanda_Terima_All_'.now()->format('Y-m-d_H-i-s').'.pdf';
+            // Generate filename berdasarkan filter
+            $filename = $this->generateDownloadFilename($search, $tahun, $startDate, $endDate, $tandaTerimas->count());
 
             return $pdf->download($filename);
         } catch (\Exception $e) {
-            Log::error('Error downloading all tanda terima: '.$e->getMessage());
-            Log::error('Stack trace: '.$e->getTraceAsString());
+            Log::error('Error downloading all tanda terima: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            // Return JSON error untuk AJAX
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengunduh semua tanda terima: ' . $e->getMessage()
+                ], 500);
+            }
 
             return redirect()->route('tanda-terima.index')
-                ->with('error', 'Gagal mengunduh semua tanda terima: '.$e->getMessage());
+                ->with('error', 'Gagal mengunduh semua tanda terima: ' . $e->getMessage());
         }
+    }
+
+    // Helper method untuk generate filename berdasarkan filter
+    private function generateDownloadFilename($search, $tahun, $startDate, $endDate, $count)
+    {
+        $baseName = 'Tanda_Terima';
+        $parts = [];
+
+        // Tambahkan info count
+        $parts[] = $count . 'data';
+
+        // Tambahkan info tahun
+        if ($tahun) {
+            $tahunSelect = \App\Models\Penganggaran::find($tahun);
+            if ($tahunSelect) {
+                $parts[] = 'Tahun_' . $tahunSelect->tahun_anggaran;
+            }
+        }
+
+        // Tambahkan info tanggal
+        if ($startDate && $endDate) {
+            $start = \Carbon\Carbon::parse($startDate)->format('d-m-Y');
+            $end = \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+            $parts[] = $start . '_sd_' . $end;
+        } elseif ($startDate) {
+            $parts[] = 'dari_' . \Carbon\Carbon::parse($startDate)->format('d-m-Y');
+        } elseif ($endDate) {
+            $parts[] = 'sampai_' . \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+        }
+
+        // Tambahkan timestamp
+        $parts[] = now()->format('Y-m-d_H-i-s');
+
+        $filename = $baseName . '_' . implode('_', $parts) . '.pdf';
+
+        // Hapus karakter yang tidak valid untuk filename
+        return preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
     }
 
     // Helper method untuk format jumlah uang

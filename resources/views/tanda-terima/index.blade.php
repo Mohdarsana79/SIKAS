@@ -193,6 +193,182 @@
             margin-bottom: 0.5rem;
         }
     }
+/* Label Styles untuk Filter */
+.form-label.small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d !important;
+}
+
+/* Label Styles untuk Filter */
+.form-label.small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d !important;
+}
+
+/* Responsive untuk label */
+@media (max-width: 768px) {
+    .d-flex.align-items-center.gap-1 {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .d-flex.align-items-center.gap-1 .form-label {
+        min-width: auto !important;
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .d-flex.align-items-center.gap-1 .input-group {
+        width: 100% !important;
+    }
+    
+    /* Tampilkan label di mobile juga */
+    .d-flex.align-items-center.gap-1 .form-label.d-none.d-md-block {
+        display: block !important;
+    }
+}
+
+/* Hover effect untuk label */
+.form-label:hover {
+    color: #495057 !important;
+}
+
+/* Focus state untuk input dengan label */
+.input-group:focus-within ~ .form-label,
+.input-group:focus-within + .form-label {
+    color: #667eea !important;
+    font-weight: 600;
+}
+
+/* Filter Date Styles */
+.input-group-sm .input-group-text {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.input-group-sm .form-control {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Filter Info Styles */
+#filterInfo {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    border-left: 4px solid #17a2b8;
+}
+
+#filterInfo .badge {
+    font-size: 0.7rem;
+}
+
+/* Date Input Styling */
+input[type="date"] {
+    position: relative;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Filter Date Styles dengan efek interaktif */
+.input-group-sm .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.input-group-sm .input-group-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 1px solid #667eea;
+}
+
+/* Loading state untuk filter */
+.filter-loading {
+    position: relative;
+}
+
+.filter-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid transparent;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translateY(-50%);
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Hover effects untuk filter */
+.input-group:hover .input-group-text {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Active filter state */
+.form-control:not(:placeholder-shown) {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+/* Date input khusus */
+input[type="date"]:focus {
+    background-color: #f8f9ff;
+}
+
+/* Responsive Filter */
+@media (max-width: 768px) {
+    .d-flex.align-items-center.w-100.mb-4 {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .search-input-group.flex-grow-1.me-2 {
+        min-width: 100%;
+        order: 1;
+    }
+    
+    .d-flex.gap-2.me-2 {
+        order: 2;
+        flex-grow: 1;
+    }
+    
+    #tahunFilter {
+        order: 3;
+        flex-grow: 1;
+    }
+    
+    #resetFilter {
+        order: 4;
+    }
+}
+
+@media (max-width: 576px) {
+    .d-flex.gap-2.me-2 {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .d-flex.gap-2.me-2 .input-group {
+        width: 100% !important;
+    }
+}
 
 /* Modal Styles untuk Landscape PDF - FIXED FULLSCREEN */
 .modal-pdf-container {
@@ -530,6 +706,38 @@ body.modal-fullscreen-active {
                     <input type="text" class="form-control form-control-sm" id="searchInput"
                         placeholder="Cari tanda terima..." aria-label="Cari tanda terima">
                 </div>
+
+                <!-- Filter Tanggal -->
+                <div class="d-flex gap-2 me-2 align-items-center">
+                    <!-- Label dan Input Mulai -->
+                    <div class="d-flex align-items-center gap-1">
+                        <label for="startDate" class="form-label mb-0 small text-muted d-none d-md-block" style="min-width: 40px;">
+                            Mulai:
+                        </label>
+                        <div class="input-group input-group-sm" style="width: 150px;">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-calendar-range text-muted small"></i>
+                            </span>
+                            <input type="date" class="form-control form-control-sm border-start-0" id="startDate" placeholder="Mulai"
+                                title="Tanggal Mulai" aria-label="Tanggal mulai filter">
+                        </div>
+                    </div>
+                
+                    <!-- Label dan Input Akhir -->
+                    <div class="d-flex align-items-center gap-1">
+                        <label for="endDate" class="form-label mb-0 small text-muted d-none d-md-block" style="min-width: 40px;">
+                            Akhir:
+                        </label>
+                        <div class="input-group input-group-sm" style="width: 150px;">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-calendar-range text-muted small"></i>
+                            </span>
+                            <input type="date" class="form-control form-control-sm border-start-0" id="endDate" placeholder="Akhir"
+                                title="Tanggal Akhir" aria-label="Tanggal akhir filter">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Filter Button -->
                 <select class="form-select w-auto" id="tahunFilter">
                     <option selected value="">Pilih Tahun</option>
@@ -552,6 +760,16 @@ body.modal-fullscreen-active {
                 </button>
                 <button class="btn btn-danger custom-action-button d-flex align-items-center" id="delete-all-btn">
                     <i class="bi bi-trash3 me-1"></i> Hapus All
+                </button>
+            </div>
+            <!-- Info Filter Aktif -->
+            <div id="filterInfo" class="mt-3 small" style="display: none;">
+                <span class="badge bg-info text-dark me-2">
+                    <i class="bi bi-funnel me-1"></i> Filter Aktif
+                </span>
+                <span id="filterText" class="text-muted"></span>
+                <button class="btn btn-sm btn-outline-danger ms-2" id="clearFilter">
+                    <i class="bi bi-x-circle me-1"></i> Hapus Filter
                 </button>
             </div>
         </div>
