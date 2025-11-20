@@ -246,7 +246,8 @@ Route::middleware(['auth'])->prefix('referensi')->group(function () {
     Route::get('/rekening-belanja', [RekeningBelanjaController::class, 'index'])->name('referensi.rekening-belanja.index');
     Route::post('/rekening-belanja', [RekeningBelanjaController::class, 'store'])->name('referensi.rekening-belanja.store');
     Route::put('/rekening-belanja/{rekeningBelanja}', [RekeningBelanjaController::class, 'update'])->name('referensi.rekening-belanja.update');
-    Route::delete('/rekening-belanja/{rekeningBelanja}', [RekeningBelanjaController::class, 'destroy'])->name('referensi.rekening-belanja.destroy');
+    
+    Route::delete('/rekening-belanja/{id}', [RekeningBelanjaController::class, 'destroy'])->name('referensi.rekening-belanja.destroy');
 
     // import uraian program
     Route::post('/referensi/rekening-belanja/import', [RekeningBelanjaController::class, 'import'])

@@ -749,6 +749,7 @@ class GlobalSearch {
         
         console.log('Event listeners reattached for:', this.currentPage);
     }
+    
 }
 
 // Initialize global search ketika DOM ready

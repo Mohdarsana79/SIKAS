@@ -26,12 +26,13 @@ class RekeningBelanjaController extends Controller
                 ->orWhere('rincian_objek', 'like', '%' . $search . '%');
         })
             ->orderBy('kode_rekening')
-            ->paginate(20); // Sesuaikan jumlah item per halaman
+            ->paginate(20)
+            ->onEachSide(1);
 
         return view('referensi.rekening-belanja', compact('rekenings', 'search'));
     }
 
-    // search ajax
+    // Pastikan method search sudah ada di controller
     public function search(Request $request): JsonResponse
     {
         try {
@@ -55,10 +56,10 @@ class RekeningBelanjaController extends Controller
             $formattedData = $rekenings->map(function ($rekening, $index) {
                 return [
                     'id' => $rekening->id,
-                    'index' => $index + 1, // Tambahkan nomor urut
+                    'index' => $index + 1,
                     'kode_rekening' => $rekening->kode_rekening,
                     'rincian_objek' => $rekening->rincian_objek,
-                    'kategori' => $rekening->kategori, // Tambahkan kategori
+                    'kategori' => $rekening->kategori,
                     'actions' => $this->getRekeningActionButtons($rekening)
                 ];
             });
@@ -82,15 +83,18 @@ class RekeningBelanjaController extends Controller
     private function getRekeningActionButtons($rekening): string
     {
         return '
-        <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                data-bs-target="#editModal' . $rekening->id . '">
-            <i class="bi bi-pencil"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
-                data-bs-target="#deleteModal' . $rekening->id . '">
-            <i class="bi bi-trash"></i>
-        </button>
-    ';
+            <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                    data-bs-target="#editModal' . $rekening->id . '">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-danger btn-delete" 
+                    data-id="' . $rekening->id . '"
+                    data-kode-rekening="' . $rekening->kode_rekening . '"
+                    data-rincian-objek="' . $rekening->rincian_objek . '"
+                    data-kategori="' . $rekening->kategori . '">
+                <i class="bi bi-trash"></i>
+            </button>
+        ';
     }
 
     /**
@@ -178,10 +182,23 @@ class RekeningBelanjaController extends Controller
      */
     public function destroy($id)
     {
-        //
-        $rekeningBelanja = RekeningBelanja::findOrFail($id);
-        $rekeningBelanja->delete();
-        return redirect()->route('referensi.rekening-belanja.index')->with('success', 'Data berhasil dihapus');
+        try {
+            $rekeningBelanja = RekeningBelanja::findOrFail($id);
+            $rekeningBelanja->delete();
+
+            // Kembalikan response JSON untuk AJAX
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error deleting rekening belanja: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function import(Request $request)
@@ -215,6 +232,7 @@ class RekeningBelanjaController extends Controller
 
             if ($errorCount > 0) {
                 $errorMessages = [];
+                /** @var \Maatwebsite\Excel\Validators\Failure $failure */
                 foreach ($import->failures() as $failure) {
                     $errorMessages[] = "Baris {$failure->row()}: " . implode(', ', $failure->errors());
                 }
