@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use App\Models\KopSekolah;
+use Illuminate\Support\Facades\Storage;
 
 class KopSekolahController extends Controller
 {
@@ -14,10 +14,25 @@ class KopSekolahController extends Controller
         return view('kop-sekolah.index', compact('kopSekolah'));
     }
 
+    public function show($id)
+    {
+        $kopSekolah = KopSekolah::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $kopSekolah->id,
+                'file_path' => asset('storage/kop_sekolah/' . $kopSekolah->file_path),
+                'created_at' => $kopSekolah->created_at->format('d M Y H:i'),
+                'created_at_human' => $kopSekolah->created_at->diffForHumans()
+            ]
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
-            'kop_sekolah' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'kop_sekolah' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         try {
@@ -35,12 +50,13 @@ class KopSekolahController extends Controller
             $filename = 'kop-sekolah-' . time() . '.' . $file->getClientOriginalExtension();
 
             // Pastikan folder ada
-            if (!file_exists(public_path('storage/kop_sekolah'))) {
-                mkdir(public_path('storage/kop_sekolah'), 0777, true);
+            $directory = public_path('storage/kop_sekolah');
+            if (!file_exists($directory)) {
+                mkdir($directory, 0777, true);
             }
 
             // Pindahkan file
-            $file->move(public_path('storage/kop_sekolah'), $filename);
+            $file->move($directory, $filename);
 
             // Simpan atau update data
             KopSekolah::updateOrCreate(
@@ -48,9 +64,23 @@ class KopSekolahController extends Controller
                 ['file_path' => $filename]
             );
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kop sekolah berhasil diupload'
+                ], 200);
+            }
+
             return redirect()->route('kop-sekolah.index')
                 ->with('success', 'Kop sekolah berhasil diupload');
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengupload kop sekolah: ' . $e->getMessage()
+                ], 500);
+            }
+
             return redirect()->back()
                 ->with('error', 'Gagal mengupload kop sekolah: ' . $e->getMessage());
         }
@@ -69,9 +99,23 @@ class KopSekolahController extends Controller
             // Hapus record
             $kopSekolah->delete();
 
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kop sekolah berhasil dihapus'
+                ], 200);
+            }
+
             return redirect()->route('kop-sekolah.index')
                 ->with('success', 'Kop sekolah berhasil dihapus');
         } catch (\Exception $e) {
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus kop sekolah: ' . $e->getMessage()
+                ], 500);
+            }
+
             return redirect()->back()
                 ->with('error', 'Gagal menghapus kop sekolah: ' . $e->getMessage());
         }
