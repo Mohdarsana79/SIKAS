@@ -906,6 +906,25 @@
         display: none !important;
     }
 }
+
+/* Custom scrollbar untuk progress details */
+.progress-details::-webkit-scrollbar {
+    width: 6px;
+}
+
+.progress-details::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.progress-details::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.progress-details::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
 </style>
 
 <div class="main-container">
