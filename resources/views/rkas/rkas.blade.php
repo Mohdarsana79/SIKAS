@@ -42,6 +42,15 @@
                             <i class="bi bi-pencil me-2"></i>Perubahan
                         </button>
                     </form>
+                    
+                    <!-- Di bagian Action Buttons - setelah tombol Perubahan -->
+                    @if (!$hasPerubahan)
+                    <button class="btn btn-info" id="btnSalinData" style="font-size: 9pt;" data-bs-toggle="tooltip"
+                        data-bs-title="Salin data dari RKAS Perubahan tahun sebelumnya">
+                        <i class="bi bi-copy me-2"></i>Salin Data
+                    </button>
+                    @endif
+
                     <button class="btn btn-outline-secondary" style="font-size: 9pt;">
                         <i class="bi bi-plus me-2"></i>Pergeseran
                     </button>

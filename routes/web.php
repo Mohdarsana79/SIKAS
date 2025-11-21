@@ -180,50 +180,46 @@ Route::middleware(['auth'])->prefix('rekaman-perubahan')->group(function () {
     Route::get('/', [RekamanPerubahanController::class, 'index'])->name('rekaman-perubahan.index');
 });
 
+// Di web.php - dalam group prefix rkas
 Route::middleware(['auth'])->prefix('rkas')->group(function () {
     Route::get('/', [RkasController::class, 'index'])->name('rkas.index');
     Route::post('/', [RkasController::class, 'store'])->name('rkas.store');
-    Route::get('/bulan/{bulan}', [RkasController::class, 'getByMonth'])->name('rkas.getByMonth');
 
-    // Route untuk delete semua data dengan kriteria yang sama
-    Route::delete('/delete-all/{id}', [RkasController::class, 'deleteAll'])->name('rkas.delete-all');
+    // Routes untuk salin data - HARUS SEBELUM {id}
+    Route::get('/check-previous-perubahan', [RkasController::class, 'checkPreviousYearPerubahan'])
+        ->name('rkas.check-previous-perubahan');
+    Route::post('/copy-previous-perubahan', [RkasController::class, 'copyPreviousYearPerubahan'])
+        ->name('rkas.copy-previous-perubahan');
 
-    // Route khusus untuk edit - TAMBAHKAN INI
-    Route::get('/{id}/edit', [RkasController::class, 'edit'])->name('rkas.edit');
-
-    Route::put('/{id}', [RkasController::class, 'update'])->name('rkas.update');
-    Route::get('/all-data', [RkasController::class, 'getAllData'])->name('rkas.getAllData');
-
-    Route::put('/{id}/update-tanggal-cetak', [PenganggaranController::class, 'updateTanggalCetak'])
-        ->name('penganggaran.update-tanggal-cetak');
-    Route::get('/{id}', [RkasController::class, 'show'])->name('rkas.show');
-    Route::post('/sisipkan', [RkasController::class, 'sisipkan'])
-        ->name('rkas.sisipkan');
-    Route::delete('/{id}', [RkasController::class, 'destroy'])->name('rkas.destroy');
-    Route::get('/total/per-bulan', [RkasController::class, 'getTotalPerBulan'])->name('rkas.getTotalPerBulan');
-    // Routes for Tahap 1 and Tahap 2 functionality
+    // Routes untuk total tahap - HARUS SEBELUM {id}
     Route::get('/total-tahap1', [RkasController::class, 'getTotalTahap1'])->name('rkas.total-tahap1');
     Route::get('/total-tahap2', [RkasController::class, 'getTotalTahap2'])->name('rkas.total-tahap2');
-    Route::get('/data-tahap/{tahap}', [RkasController::class, 'getDataByTahap'])->name('rkas.data-tahap');
-    Route::get('/rkas/rekapan', [RkasController::class, 'showRekapan'])
-        ->name('rkas.rekapan');
 
-    // Routes untuk PDF dan Preview
+    // Routes untuk bulan - HARUS SEBELUM {id}
+    Route::get('/bulan/{bulan}', [RkasController::class, 'getByMonth'])->name('rkas.getByMonth');
+    Route::get('/all-data', [RkasController::class, 'getAllData'])->name('rkas.getAllData');
+    Route::get('/total/per-bulan', [RkasController::class, 'getTotalPerBulan'])->name('rkas.getTotalPerBulan');
+    Route::get('/data-tahap/{tahap}', [RkasController::class, 'getDataByTahap'])->name('rkas.data-tahap');
+
+    // Routes dengan parameter ID - HARUS DI AKHIR
+    Route::get('/{id}/edit', [RkasController::class, 'edit'])->name('rkas.edit');
+    Route::get('/{id}', [RkasController::class, 'show'])->name('rkas.show');
+    Route::put('/{id}', [RkasController::class, 'update'])->name('rkas.update');
+    Route::delete('/{id}', [RkasController::class, 'destroy'])->name('rkas.destroy');
+    Route::delete('/delete-all/{id}', [RkasController::class, 'deleteAll'])->name('rkas.delete-all');
+
+    // Sisipkan dan lainnya
+    Route::post('/sisipkan', [RkasController::class, 'sisipkan'])->name('rkas.sisipkan');
+
+    // Routes untuk PDF dan lainnya
+    Route::get('/rkas/rekapan', [RkasController::class, 'showRekapan'])->name('rkas.rekapan');
     Route::get('/rkas/generate-pdf', [RkasController::class, 'generatePdf'])->name('rkas.generate-pdf');
     Route::get('/rkas/generate-pdf-rekap/{tahun}', [RkasController::class, 'generatePdfRkaRekap'])->name('rkas.generate-pdf-rekap');
-    Route::get('/rkas/generate-rka-221-pdf/{tahun}', [RkasController::class, 'generateRkaDuaSatuPdf'])
-        ->name('rkas.generate-rka-221-pdf');
-
-    Route::get('/rkas/get-monthly-data', [RkasController::class, 'getMonthlyData'])
-        ->name('rkas.get-monthly-data');
-
+    Route::get('/rkas/generate-rka-221-pdf/{tahun}', [RkasController::class, 'generateRkaDuaSatuPdf'])->name('rkas.generate-rka-221-pdf');
+    Route::get('/rkas/get-monthly-data', [RkasController::class, 'getMonthlyData'])->name('rkas.get-monthly-data');
     Route::get('/rkas/bulan/{month}', [RkasController::class, 'getDataByMonth'])->name('rkas.get-data-by-month');
-
-    Route::get('/rkas/rekap-bulanan/{bulan}', [RkasController::class, 'getRekapBulanan'])
-        ->name('rkas.rekap-bulanan');
-
-    Route::get('/rkas/rka-bulanan-pdf/{tahun}/{bulan}', [RkasController::class, 'generatePdfBulanan'])
-        ->name('rkas.rka-bulanan-pdf')->middleware('noCache');
+    Route::get('/rkas/rekap-bulanan/{bulan}', [RkasController::class, 'getRekapBulanan'])->name('rkas.rekap-bulanan');
+    Route::get('/rkas/rka-bulanan-pdf/{tahun}/{bulan}', [RkasController::class, 'generatePdfBulanan'])->name('rkas.rka-bulanan-pdf')->middleware('noCache');
 });
 
 // Referensi

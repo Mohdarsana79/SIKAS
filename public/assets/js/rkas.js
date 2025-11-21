@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     initializeAnggaranList();
     updateTahapCards();
+    initializeSalinDataButton(); // Inisialisasi tombol salin data
 
     // ========== UTILITY FUNCTIONS ==========
     function formatNumber(num) {
@@ -555,37 +556,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Fungsi untuk update satuan otomatis di modal edit
-function updateEditSatuanOtomatis(satuanValue) {
-    console.log('🔧 [SATUAN DEBUG] Updating satuan otomatis:', satuanValue);
-    
-    if (!satuanValue) return;
-    
-    const allSatuanInputs = document.querySelectorAll('#edit_bulanContainer .satuan-input');
-    let firstCardProcessed = false;
-    
-    allSatuanInputs.forEach((input, index) => {
-        if (!firstCardProcessed) {
-            // Card pertama - biarkan editable dan tidak readonly
-            input.readOnly = false;
-            firstCardProcessed = true;
-        } else {
-            // Card selanjutnya - set nilai dan readonly
-            input.value = satuanValue;
-            input.readOnly = true;
-        }
-    });
-}
+    function updateEditSatuanOtomatis(satuanValue) {
+        console.log('🔧 [SATUAN DEBUG] Updating satuan otomatis:', satuanValue);
+        
+        if (!satuanValue) return;
+        
+        const allSatuanInputs = document.querySelectorAll('#edit_bulanContainer .satuan-input');
+        let firstCardProcessed = false;
+        
+        allSatuanInputs.forEach((input, index) => {
+            if (!firstCardProcessed) {
+                // Card pertama - biarkan editable dan tidak readonly
+                input.readOnly = false;
+                firstCardProcessed = true;
+            } else {
+                // Card selanjutnya - set nilai dan readonly
+                input.value = satuanValue;
+                input.readOnly = true;
+            }
+        });
+    }
 
-// Fungsi untuk reset satuan otomatis setelah menghapus card
-function resetEditSatuanOtomatis() {
-    const allSatuanInputs = document.querySelectorAll('#edit_bulanContainer .satuan-input');
-    if (allSatuanInputs.length > 0) {
-        const firstSatuanValue = allSatuanInputs[0].value;
-        if (firstSatuanValue) {
-            updateEditSatuanOtomatis(firstSatuanValue);
+    // Fungsi untuk reset satuan otomatis setelah menghapus card
+    function resetEditSatuanOtomatis() {
+        const allSatuanInputs = document.querySelectorAll('#edit_bulanContainer .satuan-input');
+        if (allSatuanInputs.length > 0) {
+            const firstSatuanValue = allSatuanInputs[0].value;
+            if (firstSatuanValue) {
+                updateEditSatuanOtomatis(firstSatuanValue);
+            }
         }
     }
-}
 
     function createEditTambahButtonCard() {
         const btnCard = document.createElement('div');
@@ -776,91 +777,91 @@ function resetEditSatuanOtomatis() {
     }
 
     // Setup formatting untuk harga satuan edit
-function setupEditHargaSatuanFormatting() {
-    const editHargaSatuanInput = document.getElementById('edit_harga_satuan');
-    const editHargaSatuanActual = document.getElementById('edit_harga_satuan_actual');
+    function setupEditHargaSatuanFormatting() {
+        const editHargaSatuanInput = document.getElementById('edit_harga_satuan');
+        const editHargaSatuanActual = document.getElementById('edit_harga_satuan_actual');
 
-    if (editHargaSatuanInput && editHargaSatuanActual) {
-        console.log('🔧 [HARGA DEBUG] Initializing edit harga satuan event listeners');
-        
-        let isEditFormatting = false;
+        if (editHargaSatuanInput && editHargaSatuanActual) {
+            console.log('🔧 [HARGA DEBUG] Initializing edit harga satuan event listeners');
+            
+            let isEditFormatting = false;
 
-        function updateHiddenHargaSatuan(value) {
-            if (editHargaSatuanActual) {
-                const numericValue = value.replace(/[^\d]/g, '');
-                editHargaSatuanActual.value = numericValue;
-                console.log('🔧 [HARGA DEBUG] Updated hidden field:', numericValue);
+            function updateHiddenHargaSatuan(value) {
+                if (editHargaSatuanActual) {
+                    const numericValue = value.replace(/[^\d]/g, '');
+                    editHargaSatuanActual.value = numericValue;
+                    console.log('🔧 [HARGA DEBUG] Updated hidden field:', numericValue);
+                }
             }
-        }
 
-        editHargaSatuanInput.addEventListener('input', function(e) {
-            if (isEditFormatting) return;
-            
-            isEditFormatting = true;
-            
-            const input = e.target;
-            let value = input.value.replace(/[^\d]/g, '');
-            
-            console.log('🔧 [HARGA DEBUG] Input event, raw value:', value);
-            
-            if (value) {
-                const formattedValue = formatRupiah(value);
-                input.value = formattedValue;
+            editHargaSatuanInput.addEventListener('input', function(e) {
+                if (isEditFormatting) return;
                 
-                updateHiddenHargaSatuan(value);
-            } else {
-                input.value = '';
-                updateHiddenHargaSatuan('');
-            }
-            
-            isEditFormatting = false;
-            setTimeout(updateEditTotalAnggaran, 50);
-        });
-
-        editHargaSatuanInput.addEventListener('blur', function(e) {
-            const input = e.target;
-            let value = input.value.replace(/[^\d]/g, '');
-            
-            console.log('🔧 [HARGA DEBUG] Blur event, raw value:', value);
-            
-            if (value) {
-                const formattedValue = formatRupiah(value);
-                input.value = formattedValue;
+                isEditFormatting = true;
                 
-                updateHiddenHargaSatuan(value);
-            } else {
-                updateHiddenHargaSatuan('');
-            }
-            updateEditTotalAnggaran();
-        });
-
-        editHargaSatuanInput.addEventListener('focus', function(e) {
-            const input = e.target;
-            let value = input.value.replace(/[^\d]/g, '');
-            
-            console.log('🔧 [HARGA DEBUG] Focus event, raw value:', value);
-            
-            if (value) {
-                input.value = value;
-            }
-        });
-
-        editHargaSatuanInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const value = e.target.value.replace(/[^\d]/g, '');
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [HARGA DEBUG] Input event, raw value:', value);
+                
                 if (value) {
                     const formattedValue = formatRupiah(value);
-                    e.target.value = formattedValue;
+                    input.value = formattedValue;
+                    
                     updateHiddenHargaSatuan(value);
+                } else {
+                    input.value = '';
+                    updateHiddenHargaSatuan('');
+                }
+                
+                isEditFormatting = false;
+                setTimeout(updateEditTotalAnggaran, 50);
+            });
+
+            editHargaSatuanInput.addEventListener('blur', function(e) {
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [HARGA DEBUG] Blur event, raw value:', value);
+                
+                if (value) {
+                    const formattedValue = formatRupiah(value);
+                    input.value = formattedValue;
+                    
+                    updateHiddenHargaSatuan(value);
+                } else {
+                    updateHiddenHargaSatuan('');
                 }
                 updateEditTotalAnggaran();
-            }
-        });
-    } else {
-        console.warn('🔧 [HARGA DEBUG] Harga satuan elements not found');
+            });
+
+            editHargaSatuanInput.addEventListener('focus', function(e) {
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [HARGA DEBUG] Focus event, raw value:', value);
+                
+                if (value) {
+                    input.value = value;
+                }
+            });
+
+            editHargaSatuanInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.replace(/[^\d]/g, '');
+                    if (value) {
+                        const formattedValue = formatRupiah(value);
+                        e.target.value = formattedValue;
+                        updateHiddenHargaSatuan(value);
+                    }
+                    updateEditTotalAnggaran();
+                }
+            });
+        } else {
+            console.warn('🔧 [HARGA DEBUG] Harga satuan elements not found');
+        }
     }
-}
 
     // ========== GLOBAL FUNCTIONS ==========
     window.showEditModal = function(id) {
@@ -942,131 +943,131 @@ function setupEditHargaSatuanFormatting() {
     };
 
     // Fungsi untuk mengisi form edit dengan MULTI-BULAN
-function populateEditForm(data) {
-    console.log('🔧 [EDIT DEBUG] Populating form with MULTI-MONTH data:', data);
-    console.log('🔧 [EDIT DEBUG] Month data received:', data.bulan_data);
-    
-    const editForm = document.getElementById('editRkasForm');
-    if (!editForm) {
-        console.error('❌ [EDIT DEBUG] Edit form not found');
-        Swal.fire('Error', 'Form edit tidak ditemukan', 'error');
-        return;
-    }
+    function populateEditForm(data) {
+        console.log('🔧 [EDIT DEBUG] Populating form with MULTI-MONTH data:', data);
+        console.log('🔧 [EDIT DEBUG] Month data received:', data.bulan_data);
+        
+        const editForm = document.getElementById('editRkasForm');
+        if (!editForm) {
+            console.error('❌ [EDIT DEBUG] Edit form not found');
+            Swal.fire('Error', 'Form edit tidak ditemukan', 'error');
+            return;
+        }
 
-    // Reset form
-    editForm.reset();
+        // Reset form
+        editForm.reset();
 
-    // Set basic form values dengan null checking
-    const editKegiatan = document.getElementById('edit_kegiatan');
-    const editRekening = document.getElementById('edit_rekening_belanja');
-    const editUraian = document.getElementById('edit_uraian');
-    const editHargaSatuan = document.getElementById('edit_harga_satuan');
-    const editHargaSatuanActual = document.getElementById('edit_harga_satuan_actual');
-    const editMainDataId = document.getElementById('edit_main_data_id');
-    
-    // Null checking sebelum set value
-    if (editKegiatan && data.kode_id) editKegiatan.value = data.kode_id;
-    if (editRekening && data.kode_rekening_id) editRekening.value = data.kode_rekening_id;
-    if (editUraian && data.uraian) editUraian.value = data.uraian;
-    
-    // Set main data ID untuk delete
-    if (editMainDataId && data.id) {
-        editMainDataId.value = data.id;
-        console.log('🔧 [EDIT DEBUG] Set main data ID for delete:', data.id);
-    }
-    
-    // Format harga satuan dengan format Rupiah
-    if (editHargaSatuan && data.harga_satuan_raw) {
-        const hargaSatuanNumeric = parseFloat(data.harga_satuan_raw);
-        if (!isNaN(hargaSatuanNumeric)) {
-            const formattedValue = formatRupiah(hargaSatuanNumeric.toString());
-            editHargaSatuan.value = formattedValue;
-            
-            // Inisialisasi hidden field juga
-            if (editHargaSatuanActual) {
-                editHargaSatuanActual.value = hargaSatuanNumeric.toString();
-                console.log('🔧 [HARGA DEBUG] Initialized hidden field with:', editHargaSatuanActual.value);
+        // Set basic form values dengan null checking
+        const editKegiatan = document.getElementById('edit_kegiatan');
+        const editRekening = document.getElementById('edit_rekening_belanja');
+        const editUraian = document.getElementById('edit_uraian');
+        const editHargaSatuan = document.getElementById('edit_harga_satuan');
+        const editHargaSatuanActual = document.getElementById('edit_harga_satuan_actual');
+        const editMainDataId = document.getElementById('edit_main_data_id');
+        
+        // Null checking sebelum set value
+        if (editKegiatan && data.kode_id) editKegiatan.value = data.kode_id;
+        if (editRekening && data.kode_rekening_id) editRekening.value = data.kode_rekening_id;
+        if (editUraian && data.uraian) editUraian.value = data.uraian;
+        
+        // Set main data ID untuk delete
+        if (editMainDataId && data.id) {
+            editMainDataId.value = data.id;
+            console.log('🔧 [EDIT DEBUG] Set main data ID for delete:', data.id);
+        }
+        
+        // Format harga satuan dengan format Rupiah
+        if (editHargaSatuan && data.harga_satuan_raw) {
+            const hargaSatuanNumeric = parseFloat(data.harga_satuan_raw);
+            if (!isNaN(hargaSatuanNumeric)) {
+                const formattedValue = formatRupiah(hargaSatuanNumeric.toString());
+                editHargaSatuan.value = formattedValue;
+                
+                // Inisialisasi hidden field juga
+                if (editHargaSatuanActual) {
+                    editHargaSatuanActual.value = hargaSatuanNumeric.toString();
+                    console.log('🔧 [HARGA DEBUG] Initialized hidden field with:', editHargaSatuanActual.value);
+                }
+                console.log('🔧 [HARGA DEBUG] Initialized display with:', formattedValue);
+            } else {
+                const rawValue = data.harga_satuan_raw.toString().replace(/[^\d]/g, '');
+                if (editHargaSatuan) editHargaSatuan.value = formatRupiah(rawValue);
+                if (editHargaSatuanActual) {
+                    editHargaSatuanActual.value = rawValue;
+                    console.log('🔧 [HARGA DEBUG] Initialized hidden field with raw:', editHargaSatuanActual.value);
+                }
             }
-            console.log('🔧 [HARGA DEBUG] Initialized display with:', formattedValue);
         } else {
-            const rawValue = data.harga_satuan_raw.toString().replace(/[^\d]/g, '');
-            if (editHargaSatuan) editHargaSatuan.value = formatRupiah(rawValue);
-            if (editHargaSatuanActual) {
-                editHargaSatuanActual.value = rawValue;
-                console.log('🔧 [HARGA DEBUG] Initialized hidden field with raw:', editHargaSatuanActual.value);
-            }
+            console.warn('🔧 [HARGA DEBUG] No harga_satuan_raw data available');
         }
-    } else {
-        console.warn('🔧 [HARGA DEBUG] No harga_satuan_raw data available');
-    }
-    
-    // Initialize Select2 dengan delay dan null checking
-    setTimeout(() => {
-        if (window.jQuery && $('.select2-kegiatan-edit').length && data.kode_id) {
+        
+        // Initialize Select2 dengan delay dan null checking
+        setTimeout(() => {
+            if (window.jQuery && $('.select2-kegiatan-edit').length && data.kode_id) {
+                try {
+                    $('.select2-kegiatan-edit').val(data.kode_id).trigger('change');
+                    console.log('🔧 [EDIT DEBUG] Select2 kegiatan set to:', data.kode_id);
+                } catch (error) {
+                    console.error('❌ [EDIT DEBUG] Error setting select2 kegiatan:', error);
+                }
+            }
+            if (window.jQuery && $('.select2-rekening-edit').length && data.kode_rekening_id) {
+                try {
+                    $('.select2-rekening-edit').val(data.kode_rekening_id).trigger('change');
+                    console.log('🔧 [EDIT DEBUG] Select2 rekening set to:', data.kode_rekening_id);
+                } catch (error) {
+                    console.error('❌ [EDIT DEBUG] Error setting select2 rekening:', error);
+                }
+            }
+        }, 100);
+        
+        // SET DATA SEMUA BULAN - TANPA BULAN TERKUNCI
+        console.log('🔧 [EDIT DEBUG] Initializing MULTI-MONTH data');
+        if (data.bulan_data) {
+            initializeEditAnggaranList(data.bulan_data);
+        } else {
+            console.warn('🔧 [EDIT DEBUG] No bulan_data provided, initializing empty');
+            initializeEditAnggaranList([]);
+        }
+        
+        // Set form action untuk update
+        if (data.id) {
+            editForm.action = `/rkas/${data.id}`;
+            console.log('🔧 [EDIT DEBUG] Form action set to:', editForm.action);
+        } else {
+            console.error('❌ [EDIT DEBUG] No data ID provided');
+            Swal.fire('Error', 'Data ID tidak valid', 'error');
+            return;
+        }
+        
+        // Show modal
+        const editModalElement = document.getElementById('editRkasModal');
+        if (editModalElement) {
             try {
-                $('.select2-kegiatan-edit').val(data.kode_id).trigger('change');
-                console.log('🔧 [EDIT DEBUG] Select2 kegiatan set to:', data.kode_id);
+                const editModal = new bootstrap.Modal(editModalElement);
+                editModal.show();
+                console.log('🔧 [EDIT DEBUG] Edit modal shown successfully');
+                
+                // Update total setelah modal ditampilkan
+                setTimeout(updateEditTotalAnggaran, 500);
             } catch (error) {
-                console.error('❌ [EDIT DEBUG] Error setting select2 kegiatan:', error);
+                console.error('❌ [EDIT DEBUG] Error showing modal:', error);
+                Swal.fire('Error', 'Gagal menampilkan modal edit', 'error');
             }
+        } else {
+            console.error('❌ [EDIT DEBUG] Edit modal element not found');
+            Swal.fire('Error', 'Modal edit tidak ditemukan', 'error');
+            return;
         }
-        if (window.jQuery && $('.select2-rekening-edit').length && data.kode_rekening_id) {
-            try {
-                $('.select2-rekening-edit').val(data.kode_rekening_id).trigger('change');
-                console.log('🔧 [EDIT DEBUG] Select2 rekening set to:', data.kode_rekening_id);
-            } catch (error) {
-                console.error('❌ [EDIT DEBUG] Error setting select2 rekening:', error);
-            }
-        }
-    }, 100);
-    
-    // SET DATA SEMUA BULAN - TANPA BULAN TERKUNCI
-    console.log('🔧 [EDIT DEBUG] Initializing MULTI-MONTH data');
-    if (data.bulan_data) {
-        initializeEditAnggaranList(data.bulan_data);
-    } else {
-        console.warn('🔧 [EDIT DEBUG] No bulan_data provided, initializing empty');
-        initializeEditAnggaranList([]);
-    }
-    
-    // Set form action untuk update
-    if (data.id) {
-        editForm.action = `/rkas/${data.id}`;
-        console.log('🔧 [EDIT DEBUG] Form action set to:', editForm.action);
-    } else {
-        console.error('❌ [EDIT DEBUG] No data ID provided');
-        Swal.fire('Error', 'Data ID tidak valid', 'error');
-        return;
-    }
-    
-    // Show modal
-    const editModalElement = document.getElementById('editRkasModal');
-    if (editModalElement) {
-        try {
-            const editModal = new bootstrap.Modal(editModalElement);
-            editModal.show();
-            console.log('🔧 [EDIT DEBUG] Edit modal shown successfully');
-            
-            // Update total setelah modal ditampilkan
-            setTimeout(updateEditTotalAnggaran, 500);
-        } catch (error) {
-            console.error('❌ [EDIT DEBUG] Error showing modal:', error);
-            Swal.fire('Error', 'Gagal menampilkan modal edit', 'error');
-        }
-    } else {
-        console.error('❌ [EDIT DEBUG] Edit modal element not found');
-        Swal.fire('Error', 'Modal edit tidak ditemukan', 'error');
-        return;
-    }
 
-    // Setup event listener untuk harga satuan dengan format Rupiah
-    setupEditHargaSatuanFormatting();
+        // Setup event listener untuk harga satuan dengan format Rupiah
+        setupEditHargaSatuanFormatting();
 
-    // Setup tombol hapus semua - TAMBAHKAN INI
-    setTimeout(() => {
-        setupDeleteButton();
-    }, 500);
-}
+        // Setup tombol hapus semua - TAMBAHKAN INI
+        setTimeout(() => {
+            setupDeleteButton();
+        }, 500);
+    }
 
     // Setup event listener untuk form submission edit
     function setupEditFormSubmission() {
@@ -1241,130 +1242,130 @@ function populateEditForm(data) {
     }
 
     // ========== DELETE FUNCTIONS ==========
-function setupDeleteButton() {
-    const deleteBtn = document.getElementById('btnDeleteAllData');
-    console.log('🔧 [DELETE DEBUG] Setting up delete button:', deleteBtn);
-    
-    if (deleteBtn) {
-        // Hapus event listener lama jika ada
-        deleteBtn.replaceWith(deleteBtn.cloneNode(true));
-        const newDeleteBtn = document.getElementById('btnDeleteAllData');
+    function setupDeleteButton() {
+        const deleteBtn = document.getElementById('btnDeleteAllData');
+        console.log('🔧 [DELETE DEBUG] Setting up delete button:', deleteBtn);
         
-        newDeleteBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+        if (deleteBtn) {
+            // Hapus event listener lama jika ada
+            deleteBtn.replaceWith(deleteBtn.cloneNode(true));
+            const newDeleteBtn = document.getElementById('btnDeleteAllData');
             
-            console.log('🔧 [DELETE DEBUG] Delete button clicked');
-            
-            const mainDataId = document.getElementById('edit_main_data_id').value;
-            console.log('🔧 [DELETE DEBUG] Main data ID:', mainDataId);
-            
-            if (!mainDataId) {
-                Swal.fire('Error', 'Data tidak valid untuk dihapus', 'error');
-                return;
-            }
-            
-            showDeleteAllConfirmation(mainDataId);
-        });
-    } else {
-        console.error('❌ [DELETE DEBUG] Delete button not found');
-    }
-}
-
-function showDeleteAllConfirmation(mainDataId) {
-    console.log('🔧 [DELETE DEBUG] Showing confirmation for ID:', mainDataId);
-    
-    Swal.fire({
-        title: 'Hapus Semua Data?',
-        html: `
-            <div class="text-start">
-                <p>Anda yakin ingin menghapus <strong>SEMUA DATA</strong> untuk kegiatan ini?</p>
-                <div class="alert alert-warning mt-3">
-                    <small>
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Perhatian:</strong> Tindakan ini akan menghapus semua data dengan kegiatan, rekening, dan uraian yang sama.
-                    </small>
-                </div>
-            </div>
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Ya, Hapus Semua!',
-        cancelButtonText: 'Batal',
-        reverseButtons: true,
-        backdrop: true,
-        allowOutsideClick: false
-    }).then((result) => {
-        if (result.isConfirmed) {
-            console.log('🔧 [DELETE DEBUG] User confirmed deletion');
-            deleteAllData(mainDataId);
-        } else {
-            console.log('🔧 [DELETE DEBUG] User cancelled deletion');
-        }
-    });
-}
-
-function deleteAllData(mainDataId) {
-    console.log('🔧 [DELETE DEBUG] Starting delete process for ID:', mainDataId);
-    
-    const deleteBtn = document.getElementById('btnDeleteAllData');
-    const originalHtml = deleteBtn.innerHTML;
-    
-    deleteBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menghapus...';
-    deleteBtn.disabled = true;
-
-    fetch(`/rkas/delete-all/${mainDataId}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => {
-        console.log('🔧 [DELETE DEBUG] Response status:', response.status);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('🔧 [DELETE DEBUG] Delete response:', data);
-        if (data.success) {
-            // Tutup modal edit
-            const editModal = bootstrap.Modal.getInstance(document.getElementById('editRkasModal'));
-            if (editModal) {
-                editModal.hide();
-            }
-            
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: data.message,
-                confirmButtonText: 'OK'
-            }).then(() => {
-                location.reload();
+            newDeleteBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🔧 [DELETE DEBUG] Delete button clicked');
+                
+                const mainDataId = document.getElementById('edit_main_data_id').value;
+                console.log('🔧 [DELETE DEBUG] Main data ID:', mainDataId);
+                
+                if (!mainDataId) {
+                    Swal.fire('Error', 'Data tidak valid untuk dihapus', 'error');
+                    return;
+                }
+                
+                showDeleteAllConfirmation(mainDataId);
             });
         } else {
-            throw new Error(data.message || 'Gagal menghapus data');
+            console.error('❌ [DELETE DEBUG] Delete button not found');
         }
-    })
-    .catch(error => {
-        console.error('❌ [DELETE DEBUG] Error deleting all data:', error);
+    }
+
+    function showDeleteAllConfirmation(mainDataId) {
+        console.log('🔧 [DELETE DEBUG] Showing confirmation for ID:', mainDataId);
+        
         Swal.fire({
-            icon: 'error',
-            title: 'Hapus Gagal',
-            text: 'Terjadi kesalahan saat menghapus data: ' + error.message,
-            confirmButtonText: 'Mengerti'
+            title: 'Hapus Semua Data?',
+            html: `
+                <div class="text-start">
+                    <p>Anda yakin ingin menghapus <strong>SEMUA DATA</strong> untuk kegiatan ini?</p>
+                    <div class="alert alert-warning mt-3">
+                        <small>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>Perhatian:</strong> Tindakan ini akan menghapus semua data dengan kegiatan, rekening, dan uraian yang sama.
+                        </small>
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus Semua!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            backdrop: true,
+            allowOutsideClick: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                console.log('🔧 [DELETE DEBUG] User confirmed deletion');
+                deleteAllData(mainDataId);
+            } else {
+                console.log('🔧 [DELETE DEBUG] User cancelled deletion');
+            }
         });
-    })
-    .finally(() => {
-        deleteBtn.innerHTML = originalHtml;
-        deleteBtn.disabled = false;
-        console.log('🔧 [DELETE DEBUG] Delete process completed');
-    });
-}
+    }
+
+    function deleteAllData(mainDataId) {
+        console.log('🔧 [DELETE DEBUG] Starting delete process for ID:', mainDataId);
+        
+        const deleteBtn = document.getElementById('btnDeleteAllData');
+        const originalHtml = deleteBtn.innerHTML;
+        
+        deleteBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menghapus...';
+        deleteBtn.disabled = true;
+
+        fetch(`/rkas/delete-all/${mainDataId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            console.log('🔧 [DELETE DEBUG] Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('🔧 [DELETE DEBUG] Delete response:', data);
+            if (data.success) {
+                // Tutup modal edit
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editRkasModal'));
+                if (editModal) {
+                    editModal.hide();
+                }
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: data.message,
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                throw new Error(data.message || 'Gagal menghapus data');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [DELETE DEBUG] Error deleting all data:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hapus Gagal',
+                text: 'Terjadi kesalahan saat menghapus data: ' + error.message,
+                confirmButtonText: 'Mengerti'
+            });
+        })
+        .finally(() => {
+            deleteBtn.innerHTML = originalHtml;
+            deleteBtn.disabled = false;
+            console.log('🔧 [DELETE DEBUG] Delete process completed');
+        });
+    }
 
     // ========== SETUP EVENT LISTENERS ==========
     function setupEventListeners() {
@@ -1665,6 +1666,246 @@ function deleteAllData(mainDataId) {
         return isValid;
     }
 
+    // ========== SALIN DATA FUNCTIONS ==========
+    /**
+     * Fungsi untuk memeriksa dan mengelola tombol salin data
+     */
+    function initializeSalinDataButton() {
+        const btnSalinData = document.getElementById('btnSalinData');
+        const tahun = document.querySelector('input[name="tahun_anggaran"]')?.value;
+
+        console.log('🔍 [SALIN DATA] Initializing button for year:', tahun);
+        console.log('🔍 [SALIN DATA] Button element:', btnSalinData);
+        
+        if (!btnSalinData) {
+            console.error('❌ [SALIN DATA] Button element not found');
+            return;
+        }
+
+        if (!tahun) {
+            console.error('❌ [SALIN DATA] Tahun tidak ditemukan');
+            btnSalinData.disabled = true;
+            btnSalinData.title = 'Tahun anggaran tidak ditemukan';
+            btnSalinData.setAttribute('data-bs-toggle', 'tooltip');
+            new bootstrap.Tooltip(btnSalinData);
+            return;
+        }
+
+        // Nonaktifkan tombol sementara
+        btnSalinData.disabled = true;
+        btnSalinData.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Memeriksa...';
+
+        const url = `/rkas/check-previous-perubahan?tahun=${tahun}`;
+        console.log('🔍 [SALIN DATA] Fetching URL:', url);
+
+        // Cek apakah ada data RKAS Perubahan tahun sebelumnya
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            console.log('🔍 [SALIN DATA] Response status:', response.status);
+            console.log('🔍 [SALIN DATA] Response headers:', response.headers);
+            
+            if (!response.ok) {
+                // Jika response tidak ok, coba parse error message
+                return response.text().then(text => {
+                    console.error('❌ [SALIN DATA] Response text:', text);
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch (e) {
+                        errorData = { message: `HTTP error! status: ${response.status}` };
+                    }
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('🔍 [SALIN DATA] API Response:', data);
+            
+            if (data.success) {
+                if (data.has_previous_perubahan) {
+                    // Aktifkan tombol jika ada data
+                    btnSalinData.disabled = false;
+                    btnSalinData.innerHTML = '<i class="bi bi-copy me-2"></i>Salin Data';
+                    btnSalinData.removeAttribute('title');
+                    btnSalinData.removeAttribute('data-bs-toggle');
+                    
+                    // Hapus tooltip jika ada
+                    const tooltip = bootstrap.Tooltip.getInstance(btnSalinData);
+                    if (tooltip) {
+                        tooltip.dispose();
+                    }
+                    
+                    // Setup event listener
+                    btnSalinData.addEventListener('click', showSalinDataConfirmation);
+                    
+                    console.log('✅ [SALIN DATA] Button enabled - data available from year:', data.previous_year);
+                } else {
+                    // Nonaktifkan tombol jika tidak ada data
+                    btnSalinData.disabled = true;
+                    btnSalinData.innerHTML = '<i class="bi bi-copy me-2"></i>Salin Data';
+                    
+                    btnSalinData.title = data.message || 'Tidak ada data RKAS Perubahan tahun sebelumnya';
+                    btnSalinData.setAttribute('data-bs-toggle', 'tooltip');
+                    
+                    // Initialize tooltip
+                    new bootstrap.Tooltip(btnSalinData);
+                    
+                    console.log('ℹ️ [SALIN DATA] Button disabled - no data:', data.message);
+                }
+            } else {
+                // Handle server error
+                throw new Error(data.message || 'Server returned error');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [SALIN DATA] Error checking previous year perubahan:', error);
+            
+            btnSalinData.disabled = true;
+            btnSalinData.innerHTML = '<i class="bi bi-copy me-2"></i>Salin Data';
+            
+            let errorMessage = 'Gagal memeriksa data';
+            if (error.message.includes('404')) {
+                errorMessage = 'Endpoint tidak ditemukan. Periksa routes.';
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Terjadi kesalahan server. Silakan cek log.';
+            } else if (error.message.includes('405')) {
+                errorMessage = 'Method tidak diizinkan. Periksa HTTP method.';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            btnSalinData.title = errorMessage;
+            btnSalinData.setAttribute('data-bs-toggle', 'tooltip');
+            new bootstrap.Tooltip(btnSalinData);
+            
+            console.error('❌ [SALIN DATA] Button disabled due to error:', errorMessage);
+        });
+    }
+
+    /**
+     * Tampilkan SweetAlert konfirmasi salin data
+     */
+    function showSalinDataConfirmation() {
+        const tahun = document.querySelector('input[name="tahun_anggaran"]')?.value;
+        const previousYear = tahun - 1;
+
+        Swal.fire({
+            title: 'Salin Data RKAS Perubahan?',
+            html: `
+                <div class="text-center">
+                    <i class="bi bi-question-circle text-info" style="font-size: 4rem;"></i>
+                    <p class="mt-3">Apakah Anda ingin menyalin data RKAS Perubahan tahun sebelumnya?</p>
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            Data dari RKAS Perubahan tahun <strong>${previousYear}</strong> akan disalin ke tahun <strong>${tahun}</strong>
+                        </small>
+                    </div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-check me-2"></i>Ya, Salin Data',
+            cancelButtonText: '<i class="bi bi-x me-2"></i>Batal',
+            confirmButtonColor: '#0dcaf0',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true,
+            backdrop: true,
+            allowOutsideClick: false,
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return processSalinData();
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value && result.value.success) {
+                // Tampilkan success message
+                Swal.fire({
+                    title: 'Berhasil!',
+                    html: `
+                        <div class="text-center">
+                            <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+                            <p class="mt-3">${result.value.message}</p>
+                            <div class="alert alert-success mt-3">
+                                <small>
+                                    <i class="bi bi-check2-circle me-1"></i>
+                                    Berhasil menyalin <strong>${result.value.copied_count}</strong> data dari tahun ${result.value.previous_year}
+                                </small>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: '<i class="bi bi-arrow-clockwise me-2"></i>Refresh Halaman',
+                    confirmButtonColor: '#198754',
+                    allowOutsideClick: false
+                }).then(() => {
+                    // Refresh halaman
+                    location.reload();
+                });
+            }
+        });
+    }
+
+    /**
+     * Proses salin data - return Promise untuk SweetAlert
+     */
+    function processSalinData() {
+        const tahun = document.querySelector('input[name="tahun_anggaran"]')?.value;
+
+        if (!tahun) {
+            return Promise.reject(new Error('Tahun anggaran tidak ditemukan'));
+        }
+
+        return fetch('/rkas/copy-previous-perubahan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                tahun_anggaran: tahun
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                return data;
+            } else {
+                throw new Error(data.message || 'Gagal menyalin data');
+            }
+        })
+        .catch(error => {
+            // Tampilkan error message yang lebih spesifik
+            let errorMessage = 'Terjadi kesalahan saat menyalin data';
+            
+            if (error.message.includes('404')) {
+                errorMessage = 'Data RKAS Perubahan tahun sebelumnya tidak ditemukan';
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Terjadi kesalahan server. Silakan coba lagi.';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            Swal.showValidationMessage(errorMessage);
+            return Promise.reject(error);
+        });
+    }
+
     // ========== OTHER FUNCTIONS ==========
     function updateEditTotal() {
         const jumlah = parseFloat(document.getElementById('edit-jumlah')?.value) || 0;
@@ -1889,173 +2130,173 @@ function deleteAllData(mainDataId) {
     }
 
     window.showDetailModal = function(id) {
-    console.log('🔧 [DETAIL DEBUG] Opening detail modal for ID:', id);
-    
-    currentRkasId = id;
-
-    Swal.fire({
-        title: 'Memuat detail...',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-
-    fetch(`/rkas/${id}`, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-        }
-    })
-    .then(response => {
-        console.log('🔧 [DETAIL DEBUG] Response status:', response.status);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('🔧 [DETAIL DEBUG] API Response:', data);
-        Swal.close();
+        console.log('🔧 [DETAIL DEBUG] Opening detail modal for ID:', id);
         
-        if (data.success && data.data) {
-            console.log('🔧 [DETAIL DEBUG] Data loaded successfully:', data.data);
-            populateDetailForm(data.data);
-        } else {
-            throw new Error(data.message || 'Gagal memuat detail data');
-        }
-    })
-    .catch(error => {
-        Swal.close();
-        console.error('❌ [DETAIL DEBUG] Error fetching detail data:', error);
+        currentRkasId = id;
+
         Swal.fire({
-            icon: 'error',
-            title: 'Error Memuat Detail',
-            text: 'Terjadi kesalahan saat memuat data detail: ' + error.message,
-            confirmButtonText: 'Mengerti'
-        });
-    });
-};
-
-// Fungsi untuk mengisi form detail
-function populateDetailForm(data) {
-    console.log('🔧 [DETAIL DEBUG] Populating detail form with data:', data);
-    console.log('🔧 [DETAIL DEBUG] Month data received:', data.bulan_data);
-    
-    // Set informasi dasar
-    setElementText('detail_program_kegiatan', data.program_kegiatan || '-');
-    setElementText('detail_kegiatan', data.kegiatan || '-');
-    setElementText('detail_rekening_belanja', data.rekening_belanja || '-');
-    setElementText('detail_uraian', data.uraian || '-');
-    setElementText('detail_harga_satuan', data.harga_satuan || 'Rp 0');
-    setElementText('detail_total_anggaran', data.total_anggaran || 'Rp 0');
-    setElementText('detail_total_anggaran_display', data.total_anggaran || 'Rp 0');
-
-    // Set data bulan
-    initializeDetailAnggaranList(data.bulan_data, data.harga_satuan_raw || 0);
-    
-    // Show modal
-    const detailModalElement = document.getElementById('detailRkasModal');
-    if (detailModalElement) {
-        const detailModal = new bootstrap.Modal(detailModalElement);
-        detailModal.show();
-        console.log('🔧 [DETAIL DEBUG] Detail modal shown successfully');
-    } else {
-        console.error('❌ [DETAIL DEBUG] Detail modal element not found');
-        Swal.fire('Error', 'Modal detail tidak ditemukan', 'error');
-    }
-}
-
-// Fungsi helper untuk set text content
-function setElementText(elementId, text) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = text;
-    }
-}
-
-// Fungsi untuk inisialisasi list bulan di detail
-function initializeDetailAnggaranList(data = [], hargaSatuan = 0) {
-    const container = document.getElementById('detail_bulanContainer');
-    if (!container) {
-        console.error('❌ [DETAIL DEBUG] Detail bulan container not found');
-        return;
-    }
-
-    console.log('🔧 [DETAIL DEBUG] Initializing detail bulan list with data:', data);
-    console.log('🔧 [DETAIL DEBUG] Harga satuan:', hargaSatuan);
-    
-    // Clear container
-    container.innerHTML = '';
-    
-    let totalAnggaran = 0;
-
-    // Jika ada data bulan, buat card untuk setiap bulan
-    if (data && Array.isArray(data) && data.length > 0) {
-        console.log('🔧 [DETAIL DEBUG] Creating detail cards for', data.length, 'months');
-        data.forEach((item, index) => {
-            try {
-                const card = createDetailAnggaranCard(item.bulan, item.jumlah, item.satuan, hargaSatuan);
-                if (card) {
-                    container.appendChild(card);
-                    console.log('🔧 [DETAIL DEBUG] Created detail card for bulan:', item.bulan);
-                    
-                    // Hitung total
-                    const itemTotal = item.jumlah * hargaSatuan;
-                    totalAnggaran += itemTotal;
-                }
-            } catch (error) {
-                console.error('❌ [DETAIL DEBUG] Error creating detail card for item:', item, error);
+            title: 'Memuat detail...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
         });
-    } else {
-        // Jika tidak ada data, tampilkan pesan
-        console.log('🔧 [DETAIL DEBUG] No month data for detail');
-        container.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="bi bi-inbox display-4"></i>
-                <p class="mt-2">Tidak ada data bulan</p>
+
+        fetch(`/rkas/${id}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            console.log('🔧 [DETAIL DEBUG] Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('🔧 [DETAIL DEBUG] API Response:', data);
+            Swal.close();
+            
+            if (data.success && data.data) {
+                console.log('🔧 [DETAIL DEBUG] Data loaded successfully:', data.data);
+                populateDetailForm(data.data);
+            } else {
+                throw new Error(data.message || 'Gagal memuat detail data');
+            }
+        })
+        .catch(error => {
+            Swal.close();
+            console.error('❌ [DETAIL DEBUG] Error fetching detail data:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Memuat Detail',
+                text: 'Terjadi kesalahan saat memuat data detail: ' + error.message,
+                confirmButtonText: 'Mengerti'
+            });
+        });
+    };
+
+    // Fungsi untuk mengisi form detail
+    function populateDetailForm(data) {
+        console.log('🔧 [DETAIL DEBUG] Populating detail form with data:', data);
+        console.log('🔧 [DETAIL DEBUG] Month data received:', data.bulan_data);
+        
+        // Set informasi dasar
+        setElementText('detail_program_kegiatan', data.program_kegiatan || '-');
+        setElementText('detail_kegiatan', data.kegiatan || '-');
+        setElementText('detail_rekening_belanja', data.rekening_belanja || '-');
+        setElementText('detail_uraian', data.uraian || '-');
+        setElementText('detail_harga_satuan', data.harga_satuan || 'Rp 0');
+        setElementText('detail_total_anggaran', data.total_anggaran || 'Rp 0');
+        setElementText('detail_total_anggaran_display', data.total_anggaran || 'Rp 0');
+
+        // Set data bulan
+        initializeDetailAnggaranList(data.bulan_data, data.harga_satuan_raw || 0);
+        
+        // Show modal
+        const detailModalElement = document.getElementById('detailRkasModal');
+        if (detailModalElement) {
+            const detailModal = new bootstrap.Modal(detailModalElement);
+            detailModal.show();
+            console.log('🔧 [DETAIL DEBUG] Detail modal shown successfully');
+        } else {
+            console.error('❌ [DETAIL DEBUG] Detail modal element not found');
+            Swal.fire('Error', 'Modal detail tidak ditemukan', 'error');
+        }
+    }
+
+    // Fungsi helper untuk set text content
+    function setElementText(elementId, text) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = text;
+        }
+    }
+
+    // Fungsi untuk inisialisasi list bulan di detail
+    function initializeDetailAnggaranList(data = [], hargaSatuan = 0) {
+        const container = document.getElementById('detail_bulanContainer');
+        if (!container) {
+            console.error('❌ [DETAIL DEBUG] Detail bulan container not found');
+            return;
+        }
+
+        console.log('🔧 [DETAIL DEBUG] Initializing detail bulan list with data:', data);
+        console.log('🔧 [DETAIL DEBUG] Harga satuan:', hargaSatuan);
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        let totalAnggaran = 0;
+
+        // Jika ada data bulan, buat card untuk setiap bulan
+        if (data && Array.isArray(data) && data.length > 0) {
+            console.log('🔧 [DETAIL DEBUG] Creating detail cards for', data.length, 'months');
+            data.forEach((item, index) => {
+                try {
+                    const card = createDetailAnggaranCard(item.bulan, item.jumlah, item.satuan, hargaSatuan);
+                    if (card) {
+                        container.appendChild(card);
+                        console.log('🔧 [DETAIL DEBUG] Created detail card for bulan:', item.bulan);
+                        
+                        // Hitung total
+                        const itemTotal = item.jumlah * hargaSatuan;
+                        totalAnggaran += itemTotal;
+                    }
+                } catch (error) {
+                    console.error('❌ [DETAIL DEBUG] Error creating detail card for item:', item, error);
+                }
+            });
+        } else {
+            // Jika tidak ada data, tampilkan pesan
+            console.log('🔧 [DETAIL DEBUG] No month data for detail');
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox display-4"></i>
+                    <p class="mt-2">Tidak ada data bulan</p>
+                </div>
+            `;
+        }
+
+        // Update total display
+        const totalDisplay = document.getElementById('detail_total_anggaran_display');
+        if (totalDisplay) {
+            totalDisplay.textContent = 'Rp ' + formatNumber(totalAnggaran);
+        }
+
+        console.log('🔧 [DETAIL DEBUG] Total cards created:', container.querySelectorAll('.detail-bulan-card').length);
+        console.log('🔧 [DETAIL DEBUG] Total anggaran:', totalAnggaran);
+    }
+
+    // Fungsi untuk membuat card bulan di detail
+    function createDetailAnggaranCard(bulan = '', jumlah = '', satuan = '', hargaSatuan = 0) {
+        const card = document.createElement('div');
+        card.className = 'detail-bulan-card';
+        
+        const total = jumlah * hargaSatuan;
+        
+        card.innerHTML = `
+            <div class="bulan-input-group">
+                <div class="bulan-display">${bulan || '-'}</div>
+                <span class="month-total">Rp ${formatNumber(total)}</span>
+            </div>
+            <div class="jumlah-satuan-group">
+                <div>
+                    <small class="text-muted">Jumlah</small>
+                    <div class="input-display">${jumlah || '0'}</div>
+                </div>
+                <div>
+                    <small class="text-muted">Satuan</small>
+                    <div class="input-display">${satuan || '-'}</div>
+                </div>
             </div>
         `;
+
+        return card;
     }
-
-    // Update total display
-    const totalDisplay = document.getElementById('detail_total_anggaran_display');
-    if (totalDisplay) {
-        totalDisplay.textContent = 'Rp ' + formatNumber(totalAnggaran);
-    }
-
-    console.log('🔧 [DETAIL DEBUG] Total cards created:', container.querySelectorAll('.detail-bulan-card').length);
-    console.log('🔧 [DETAIL DEBUG] Total anggaran:', totalAnggaran);
-}
-
-// Fungsi untuk membuat card bulan di detail
-function createDetailAnggaranCard(bulan = '', jumlah = '', satuan = '', hargaSatuan = 0) {
-    const card = document.createElement('div');
-    card.className = 'detail-bulan-card';
-    
-    const total = jumlah * hargaSatuan;
-    
-    card.innerHTML = `
-        <div class="bulan-input-group">
-            <div class="bulan-display">${bulan || '-'}</div>
-            <span class="month-total">Rp ${formatNumber(total)}</span>
-        </div>
-        <div class="jumlah-satuan-group">
-            <div>
-                <small class="text-muted">Jumlah</small>
-                <div class="input-display">${jumlah || '0'}</div>
-            </div>
-            <div>
-                <small class="text-muted">Satuan</small>
-                <div class="input-display">${satuan || '-'}</div>
-            </div>
-        </div>
-    `;
-
-    return card;
-}
 
     window.showDeleteModal = function(id) {
         currentRkasId = id;

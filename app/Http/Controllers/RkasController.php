@@ -2643,4 +2643,155 @@ class RkasController extends Controller
 
         return $colors[array_rand($colors)];
     }
+
+    // Di RkasController.php - tambahkan method baru
+
+    /**
+     * Check if previous year RKAS Perubahan exists
+     */
+    public function checkPreviousYearPerubahan(Request $request)
+    {
+        try {
+            Log::info('🔍 [CHECK PREVIOUS PERUBAHAN] Checking for year: ' . $request->input('tahun'));
+
+            $currentYear = $request->input('tahun');
+
+            if (!$currentYear) {
+                Log::warning('❌ [CHECK PREVIOUS PERUBAHAN] Tahun parameter missing');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter tahun diperlukan'
+                ], 400);
+            }
+
+            $previousYear = $currentYear - 1;
+
+            Log::info('🔍 [CHECK PREVIOUS PERUBAHAN] Previous year: ' . $previousYear);
+
+            // Cek apakah ada data penganggaran tahun sebelumnya
+            $previousPenganggaran = Penganggaran::where('tahun_anggaran', $previousYear)->first();
+
+            if (!$previousPenganggaran) {
+                Log::info('🔍 [CHECK PREVIOUS PERUBAHAN] No penganggaran found for year: ' . $previousYear);
+                return response()->json([
+                    'success' => true, // Tetap success karena ini kondisi normal
+                    'has_previous_perubahan' => false,
+                    'message' => 'Data penganggaran tahun ' . $previousYear . ' tidak ditemukan'
+                ]);
+            }
+
+            Log::info('🔍 [CHECK PREVIOUS PERUBAHAN] Penganggaran found, ID: ' . $previousPenganggaran->id);
+
+            // Cek apakah ada RKAS Perubahan tahun sebelumnya
+            $hasPreviousPerubahan = RkasPerubahan::where('penganggaran_id', $previousPenganggaran->id)->exists();
+
+            Log::info('🔍 [CHECK PREVIOUS PERUBAHAN] Has previous perubahan: ' . ($hasPreviousPerubahan ? 'YES' : 'NO'));
+
+            return response()->json([
+                'success' => true,
+                'has_previous_perubahan' => $hasPreviousPerubahan,
+                'previous_year' => $previousYear,
+                'current_year' => $currentYear,
+                'message' => $hasPreviousPerubahan ?
+                    'Data RKAS Perubahan tahun ' . $previousYear . ' tersedia' :
+                    'Tidak ada data RKAS Perubahan tahun ' . $previousYear
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ [CHECK PREVIOUS PERUBAHAN] Error: ' . $e->getMessage());
+            Log::error('❌ [CHECK PREVIOUS PERUBAHAN] Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan server: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Copy previous year RKAS Perubahan to current year
+     */
+    public function copyPreviousYearPerubahan(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $currentYear = $request->input('tahun_anggaran');
+
+            if (!$currentYear) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter tahun anggaran diperlukan'
+                ], 400);
+            }
+
+            $previousYear = $currentYear - 1;
+
+            // Dapatkan data penganggaran
+            $previousPenganggaran = Penganggaran::where('tahun_anggaran', $previousYear)->first();
+            $currentPenganggaran = Penganggaran::where('tahun_anggaran', $currentYear)->first();
+
+            if (!$previousPenganggaran || !$currentPenganggaran) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data penganggaran tidak lengkap'
+                ], 404);
+            }
+
+            // Ambil semua data RKAS Perubahan tahun sebelumnya
+            $previousPerubahanData = RkasPerubahan::where('penganggaran_id', $previousPenganggaran->id)->get();
+
+            if ($previousPerubahanData->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada data RKAS Perubahan tahun ' . $previousYear . ' untuk disalin'
+                ], 404);
+            }
+
+            $copiedCount = 0;
+
+            foreach ($previousPerubahanData as $previousData) {
+                // Cek apakah data sudah ada di tahun ini (berdasarkan kriteria unik)
+                $exists = Rkas::where('penganggaran_id', $currentPenganggaran->id)
+                    ->where('kode_id', $previousData->kode_id)
+                    ->where('kode_rekening_id', $previousData->kode_rekening_id)
+                    ->where('uraian', $previousData->uraian)
+                    ->where('bulan', $previousData->bulan)
+                    ->exists();
+
+                if (!$exists) {
+                    // Salin data ke RKAS tahun berjalan
+                    Rkas::create([
+                        'penganggaran_id' => $currentPenganggaran->id,
+                        'kode_id' => $previousData->kode_id,
+                        'kode_rekening_id' => $previousData->kode_rekening_id,
+                        'uraian' => $previousData->uraian,
+                        'harga_satuan' => $previousData->harga_satuan,
+                        'jumlah' => $previousData->jumlah,
+                        'satuan' => $previousData->satuan,
+                        'bulan' => $previousData->bulan,
+                    ]);
+
+                    $copiedCount++;
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil menyalin ' . $copiedCount . ' data dari RKAS Perubahan tahun ' . $previousYear,
+                'copied_count' => $copiedCount,
+                'previous_year' => $previousYear,
+                'current_year' => $currentYear
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error copying previous year perubahan: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyalin data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
