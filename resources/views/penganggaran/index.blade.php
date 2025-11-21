@@ -2,6 +2,348 @@
 @include('layouts.sidebar')
 @include('layouts.navbar')
 @section('content')
+
+<style>
+    /* === RESET DAN BASE STYLES === */
+    .modern-modal {
+        border: none !important;
+        border-radius: 20px !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        font-size: 12pt !important;
+    }
+
+    /* === GRADIENT HEADER - PASTIKAN INI BERJALAN === */
+    .modern-modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-bottom: none !important;
+        padding: 1.5rem !important;
+        position: relative !important;
+        overflow: hidden !important;
+        color: white !important;
+    }
+
+    .modern-modal-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+        z-index: 1;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+
+    /* Header Content */
+    .header-content {
+        display: flex !important;
+        align-items: center !important;
+        gap: 1rem !important;
+        position: relative !important;
+        z-index: 2 !important;
+    }
+
+    .header-icon {
+        width: 50px !important;
+        height: 50px !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .header-icon:hover {
+        background: rgba(255, 255, 255, 0.3) !important;
+        transform: scale(1.05) !important;
+    }
+
+    .header-icon i {
+        font-size: 1.5rem !important;
+        color: white !important;
+    }
+
+    .header-text .modal-title {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        color: white !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .modal-subtitle {
+        font-size: 0.85rem !important;
+        margin: 0.25rem 0 0 !important;
+        opacity: 0.9 !important;
+        color: white !important;
+        font-weight: 400 !important;
+    }
+
+    /* Modal Body */
+    .modern-modal-body {
+        padding: 1.5rem !important;
+        font-size: 12pt !important;
+    }
+
+    /* Form Sections */
+    .form-section {
+        margin-bottom: 1.5rem !important;
+        background: #f8fafc !important;
+        border-radius: 12px !important;
+        padding: 1.25rem !important;
+        border: 1px solid #e2e8f0 !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .form-section:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* Section Titles dengan Gradient */
+    .section-title {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 10px !important;
+        margin: -1rem -1rem 1rem -1rem !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 12pt !important;
+        box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3) !important;
+    }
+
+    /* Gradient variations untuk section titles */
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    }
+
+    .bg-gradient-secondary {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+        color: #2d3748 !important;
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
+        color: #2d3748 !important;
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%) !important;
+        color: #2d3748 !important;
+    }
+
+    /* Form Labels */
+    .modern-label {
+        font-weight: 600 !important;
+        color: #2d3748 !important;
+        margin-bottom: 0.5rem !important;
+        font-size: 12pt !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Input Groups dengan Warna */
+    .modern-input-group {
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .modern-input-group:focus-within {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .modern-input-group .input-group-text {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 600 !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 12pt !important;
+        min-width: 50px !important;
+        justify-content: center !important;
+    }
+
+    .modern-input {
+        border: 1px solid #e2e8f0 !important;
+        border-left: none !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 12pt !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .modern-input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+
+    /* Gradient variations untuk input groups */
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%) !important;
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+    }
+
+    .bg-gradient-purple {
+        background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%) !important;
+    }
+
+    .bg-gradient-orange {
+        background: linear-gradient(135deg, #FF8008 0%, #FFC837 100%) !important;
+    }
+
+    .bg-gradient-pink {
+        background: linear-gradient(135deg, #F857A6 0%, #FF5858 100%) !important;
+    }
+
+    .bg-gradient-blue {
+        background: linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%) !important;
+    }
+
+    .bg-gradient-teal {
+        background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%) !important;
+    }
+
+    .bg-gradient-indigo {
+        background: linear-gradient(135deg, #5f2c82 0%, #49a09d 100%) !important;
+    }
+
+    .bg-gradient-green {
+        background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%) !important;
+    }
+
+    .bg-gradient-cyan {
+        background: linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%) !important;
+    }
+
+    .bg-gradient-lime {
+        background: linear-gradient(135deg, #c2e59c 0%, #64b3f4 100%) !important;
+    }
+
+    /* Info Box */
+    .info-box {
+        background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%) !important;
+        border-radius: 10px !important;
+        padding: 1rem !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        border-left: 4px solid #667eea !important;
+        margin-top: 1rem !important;
+    }
+
+    .info-icon {
+        font-size: 1.25rem !important;
+        color: #667eea !important;
+    }
+
+    .info-content small {
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+    }
+
+    /* Modal Footer */
+    .modern-modal-footer {
+        background: #f8fafc !important;
+        border-top: 1px solid #e2e8f0 !important;
+        padding: 1.25rem 1.5rem !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Buttons */
+    .btn-cancel {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+        border: 1px solid #cbd5e0 !important;
+        color: #4a5568 !important;
+        font-weight: 600 !important;
+        padding: 0.625rem 1.25rem !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+        font-size: 12pt !important;
+    }
+
+    .btn-cancel:hover {
+        background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 600 !important;
+        padding: 0.625rem 1.25rem !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+        font-size: 12pt !important;
+    }
+
+    .btn-save:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3) !important;
+    }
+
+    /* Form Controls */
+    .form-control {
+        font-size: 12pt !important;
+    }
+
+    .form-select {
+        font-size: 12pt !important;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .modern-modal-header {
+            padding: 1rem !important;
+        }
+
+        .header-content {
+            flex-direction: column !important;
+            text-align: center !important;
+            gap: 0.75rem !important;
+        }
+
+        .header-icon {
+            width: 45px !important;
+            height: 45px !important;
+        }
+
+        .modern-modal-body {
+            padding: 1rem !important;
+        }
+
+        .form-section {
+            padding: 1rem !important;
+        }
+    }
+
+    /* Smooth transitions untuk semua elemen */
+    * {
+        transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+    }
+</style>
+
 <div class="content-area" id="contentArea">
     <!-- Dashboard Content -->
     <div class="fade-in">
@@ -29,162 +371,244 @@
         <div class="modal fade" id="tambahAnggaranModal" tabindex="-1" aria-labelledby="tambahAnggaranModalLabel"
             aria-hidden="true">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="tambahAnggaranModalLabel">
-                            <i class="bi bi-plus-circle me-2"></i>Tambah Anggaran Baru
-                        </h5>
+                <div class="modal-content modern-modal">
+                    <!-- Modal Header dengan Gradient Colorful -->
+                    <div class="modal-header modern-modal-header bg-gradient-primary">
+                        <div class="header-content">
+                            <div class="header-icon">
+                                <i class="bi bi-plus-circle-fill"></i>
+                            </div>
+                            <div class="header-text">
+                                <h5 class="modal-title">Tambah Anggaran Baru</h5>
+                                <p class="modal-subtitle">Lengkapi data anggaran sekolah dengan informasi yang valid</p>
+                            </div>
+                        </div>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                             aria-label="Close"></button>
                     </div>
+        
                     <form action="{{ route('penganggaran.store') }}" method="POST" id="formTambahAnggaran">
                         @csrf
-                        <div class="modal-body">
+                        <div class="modal-body modern-modal-body">
                             <div class="row">
-                                <!-- Informasi Anggaran -->
+                                <!-- Kolom Kiri - Informasi Utama -->
                                 <div class="col-md-6">
-                                    <div class="border-bottom pb-2 mb-3">
-                                        <h6 class="text-primary"><i class="bi bi-cash-coin me-2"></i>Informasi Anggaran
-                                        </h6>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="pagu_anggaran" class="form-label">Pagu Anggaran <span
-                                                class="text-danger">*</span></label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light">Rp</span>
-                                            <input type="text" class="form-control" id="pagu_anggaran"
-                                                name="pagu_anggaran" required placeholder="Masukkan pagu anggaran">
+                                    <div class="form-section">
+                                        <div class="section-title bg-gradient-info">
+                                            <i class="bi bi-cash-coin"></i>
+                                            <span>Informasi Anggaran</span>
                                         </div>
-                                        <div class="form-text">Contoh: 1.000.000</div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="tahun_anggaran" class="form-label">Tahun Anggaran <span
-                                                class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="tahun_anggaran"
-                                            name="tahun_anggaran" min="2000" max="{{ date('Y') + 5 }}" required
-                                            placeholder="{{ date('Y') }}">
+        
+                                        <div class="mb-3">
+                                            <label for="pagu_anggaran" class="form-label modern-label">
+                                                <i class="bi bi-currency-dollar me-1"></i>
+                                                Pagu Anggaran <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-warning text-white">
+                                                    <i class="bi bi-currency-dollar"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="pagu_anggaran"
+                                                    name="pagu_anggaran" required placeholder="Contoh: 1.000.000.000">
+                                            </div>
+                                        </div>
+        
+                                        <div class="mb-3">
+                                            <label for="tahun_anggaran" class="form-label modern-label">
+                                                <i class="bi bi-calendar3 me-1"></i>
+                                                Tahun Anggaran <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-success text-white">
+                                                    <i class="bi bi-calendar3"></i>
+                                                </span>
+                                                <input type="number" class="form-control modern-input" id="tahun_anggaran"
+                                                    name="tahun_anggaran" min="2000" max="{{ date('Y') + 5 }}" required
+                                                    placeholder="{{ date('Y') }}">
+                                            </div>
+                                        </div>
+        
+                                        <div class="mb-3">
+                                            <label for="komite" class="form-label modern-label">
+                                                <i class="bi bi-people-fill me-1"></i>
+                                                Nama Komite <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-purple text-white">
+                                                    <i class="bi bi-people-fill"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="komite" name="komite"
+                                                    required placeholder="Nama Komite Sekolah">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <!-- Informasi Komite -->
+        
+                                <!-- Kolom Kanan - Informasi Tambahan -->
                                 <div class="col-md-6">
-                                    <div class="border-bottom pb-2 mb-3">
-                                        <h6 class="text-primary"><i class="bi bi-people me-2"></i>Informasi Komite</h6>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="komite" class="form-label">Nama Komite <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="komite" name="komite" required
-                                            placeholder="Nama Komite Sekolah">
+                                    <div class="form-section">
+                                        <div class="section-title bg-gradient-secondary">
+                                            <i class="bi bi-calendar-event"></i>
+                                            <span>Informasi Tambahan</span>
+                                        </div>
+        
+                                        <div class="mb-3">
+                                            <label for="tanggal_sk_kepala_sekolah" class="form-label modern-label">
+                                                <i class="bi bi-calendar-date me-1"></i>
+                                                Tanggal SK Kepala Sekolah
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-orange text-white">
+                                                    <i class="bi bi-calendar-date"></i>
+                                                </span>
+                                                <input type="date" class="form-control modern-input"
+                                                    id="tanggal_sk_kepala_sekolah" name="tanggal_sk_kepala_sekolah">
+                                            </div>
+                                        </div>
+        
+                                        <div class="mb-3">
+                                            <label for="tanggal_sk_bendahara" class="form-label modern-label">
+                                                <i class="bi bi-calendar-check me-1"></i>
+                                                Tanggal SK Bendahara
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-pink text-white">
+                                                    <i class="bi bi-calendar-check"></i>
+                                                </span>
+                                                <input type="date" class="form-control modern-input" id="tanggal_sk_bendahara"
+                                                    name="tanggal_sk_bendahara">
+                                            </div>
+                                        </div>
+        
+                                        <!-- Info Box Colorful -->
+                                        <div class="info-box bg-gradient-light">
+                                            <div class="info-icon text-primary">
+                                                <i class="bi bi-info-circle-fill"></i>
+                                            </div>
+                                            <div class="info-content">
+                                                <small class="text-dark">
+                                                    <strong>Informasi Penting:</strong> Field dengan tanda
+                                                    <span class="text-danger fw-bold">*</span> wajib diisi.
+                                                    Pastikan data yang dimasukkan sudah benar.
+                                                </small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
+        
                             <!-- Informasi Kepala Sekolah -->
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="border-bottom pb-2 mb-3">
-                                        <h6 class="text-primary"><i class="bi bi-person-badge me-2"></i>Informasi Kepala
-                                            Sekolah
-                                        </h6>
-                                    </div>
+                            <div class="form-section mt-4">
+                                <div class="section-title bg-gradient-warning">
+                                    <i class="bi bi-person-badge"></i>
+                                    <span>Informasi Kepala Sekolah</span>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="kepala_sekolah" class="form-label">Nama Kepala Sekolah <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="kepala_sekolah"
-                                            name="kepala_sekolah" required placeholder="Nama Lengkap Kepala Sekolah">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="kepala_sekolah" class="form-label modern-label">
+                                                Nama Lengkap <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-blue text-white">
+                                                    <i class="bi bi-person"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="kepala_sekolah"
+                                                    name="kepala_sekolah" required placeholder="Nama Kepala Sekolah">
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="nip_kepala_sekolah" class="form-label">NIP <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="nip_kepala_sekolah"
-                                            name="nip_kepala_sekolah" required placeholder="Nomor Induk Pegawai">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="nip_kepala_sekolah" class="form-label modern-label">
+                                                NIP <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-teal text-white">
+                                                    <i class="bi bi-id-card"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="nip_kepala_sekolah"
+                                                    name="nip_kepala_sekolah" required placeholder="Nomor Induk Pegawai">
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="sk_kepala_sekolah" class="form-label">SK Pelantikan <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="sk_kepala_sekolah"
-                                            name="sk_kepala_sekolah" required placeholder="Nomor SK Pelantikan">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="sk_kepala_sekolah" class="form-label modern-label">
+                                                SK Pelantikan <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-indigo text-white">
+                                                    <i class="bi bi-file-text"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="sk_kepala_sekolah"
+                                                    name="sk_kepala_sekolah" required placeholder="Nomor SK Pelantikan">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
+        
                             <!-- Informasi Bendahara -->
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="border-bottom pb-2 mb-3">
-                                        <h6 class="text-primary"><i class="bi bi-person-check me-2"></i>Informasi
-                                            Bendahara</h6>
+                            <div class="form-section mt-4">
+                                <div class="section-title bg-gradient-success">
+                                    <i class="bi bi-person-check"></i>
+                                    <span>Informasi Bendahara</span>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="bendahara" class="form-label modern-label">
+                                                Nama Lengkap <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-green text-white">
+                                                    <i class="bi bi-person"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="bendahara"
+                                                    name="bendahara" required placeholder="Nama Bendahara">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="nip_bendahara" class="form-label modern-label">
+                                                NIP <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-cyan text-white">
+                                                    <i class="bi bi-id-card"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="nip_bendahara"
+                                                    name="nip_bendahara" required placeholder="Nomor Induk Pegawai">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="sk_bendahara" class="form-label modern-label">
+                                                SK Bendahara <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group modern-input-group">
+                                                <span class="input-group-text bg-gradient-lime text-white">
+                                                    <i class="bi bi-file-text"></i>
+                                                </span>
+                                                <input type="text" class="form-control modern-input" id="sk_bendahara"
+                                                    name="sk_bendahara" required placeholder="Nomor SK Bendahara">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="bendahara" class="form-label">Nama Bendahara <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="bendahara" name="bendahara" required
-                                            placeholder="Nama Lengkap Bendahara">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="nip_bendahara" class="form-label">NIP <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="nip_bendahara" name="nip_bendahara"
-                                            required placeholder="Nomor Induk Pegawai">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="sk_bendahara" class="form-label">SK Bendahara <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="sk_bendahara" name="sk_bendahara"
-                                            required placeholder="Nomor SK Bendahara">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Informasi Tambahan -->
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="tanggal_sk_bendahara" class="form-label">Tanggal SK
-                                            Bendahara</label>
-                                        <input type="date" class="form-control" id="tanggal_sk_bendahara"
-                                            name="tanggal_sk_bendahara">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="tanggal_sk_kepala_sekolah" class="form-label">Tanggal SK Pelantikan
-                                            Kepsek</label>
-                                        <input type="date" class="form-control" id="tanggal_sk_kepala_sekolah"
-                                            name="tanggal_sk_kepala_sekolah">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="alert alert-info mt-3">
-                                <small>
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Field dengan tanda <span class="text-danger">*</span> wajib diisi.
-                                </small>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        
+                        <!-- Modal Footer -->
+                        <div class="modal-footer modern-modal-footer">
+                            <button type="button" class="btn btn-outline-secondary btn-cancel" data-bs-dismiss="modal">
                                 <i class="bi bi-x-circle me-2"></i>Batal
                             </button>
-                            <button type="submit" class="btn btn-primary" id="btnSimpan">
-                                <i class="bi bi-check-circle me-2"></i>Simpan
+                            <button type="submit" class="btn btn-primary btn-save">
+                                <i class="bi bi-check-circle me-2"></i>Simpan Data
                             </button>
                         </div>
                     </form>
@@ -236,15 +660,12 @@
                         <div class="p-4">
                             @forelse ($anggarans as $anggaran)
                             <!-- CARD RKAS ASLI -->
-                            <div
-                                class="rkas-item d-flex align-items-center justify-content-between p-3 mb-3 bg-light rounded">
+                            <div class="rkas-item d-flex align-items-center justify-content-between p-3 mb-3 bg-light rounded">
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-file-earmark-text me-3 text-primary fs-4"></i>
                                     <div>
-                                        <h6 class="mb-1 fw-semibold">RKAS BOSP Reguler {{ $anggaran->tahun_anggaran }}
-                                        </h6>
-                                        <p class="mb-1">Pagu: Rp {{ number_format($anggaran->pagu_anggaran, 0, ',', '.')
-                                            }}</p>
+                                        <h6 class="mb-1 fw-semibold">RKAS BOSP Reguler {{ $anggaran->tahun_anggaran }}</h6>
+                                        <p class="mb-1">Pagu: Rp {{ number_format($anggaran->pagu_anggaran, 0, ',', '.') }}</p>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2">
@@ -254,19 +675,20 @@
                                     </a>
                                     @if($anggaran->has_rkas)
                                     <a class="btn btn-sm btn-outline-dark"
-                                        href="{{ route('rkas.rekapan', ['tahun' => $anggaran->tahun_anggaran]) }}"
-                                        title="Cetak RKAS Awal">
+                                        href="{{ route('rkas.rekapan', ['tahun' => $anggaran->tahun_anggaran]) }}" title="Cetak RKAS Awal">
                                         <i class="bi bi-printer"></i>
                                     </a>
                                     @else
-                                    <button class="btn btn-sm btn-outline-dark" disabled
-                                        title="Tidak ada data untuk dicetak">
+                                    <button class="btn btn-sm btn-outline-dark" disabled title="Tidak ada data untuk dicetak">
                                         <i class="bi bi-printer"></i>
                                     </button>
                                     @endif
-                                    <button class="btn btn-sm btn-outline-danger btn-hapus-anggaran" title="Hapus"
+                                    <button
+                                        class="btn btn-sm btn-outline-danger btn-hapus-anggaran {{ $anggaran->has_perubahan ? 'disabled' : '' }}"
+                                        title="{{ $anggaran->has_perubahan ? 'Tidak dapat dihapus karena sudah ada RKAS Perubahan' : 'Hapus' }}"
                                         data-id="{{ $anggaran->id }}" data-tahun="{{ $anggaran->tahun_anggaran }}"
-                                        data-pagu="{{ number_format($anggaran->pagu_anggaran, 0, ',', '.') }}">
+                                        data-pagu="{{ number_format($anggaran->pagu_anggaran, 0, ',', '.') }}" {{ $anggaran->has_perubahan ?
+                                        'disabled' : '' }}>
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
@@ -363,237 +785,16 @@
 </div>
 @endsection
 
-@push('styles')
-<style>
-    .modal-header {
-        border-bottom: 2px solid #dee2e6;
-    }
-
-    .modal-footer {
-        border-top: 1px solid #dee2e6;
-    }
-
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-
-    .input-group-text {
-        background-color: #f8f9fa;
-        border-right: none;
-    }
-
-    .form-control:focus+.input-group-text {
-        border-color: #86b7fe;
-        background-color: #f8f9fa;
-    }
-
-    .border-bottom h6 {
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-</style>
-@endpush
-
 @push('scripts')
 <script>
-    $(document).ready(function() {
-    // Format input angka tambah anggaran
-    $('#pagu_anggaran').on('keyup', function() {
-        let value = $(this).val().replace(/[^\d]/g, '');
-        if (value.length > 0) {
-            value = parseInt(value).toLocaleString('id-ID');
-            $(this).val(value);
-        }
-    });
-
-    // Reset form ketika modal ditutup
-    $('#tambahAnggaranModal').on('hidden.bs.modal', function () {
-        $('#formTambahAnggaran')[0].reset();
-    });
-
-    // Validasi form sebelum submit
-    $('#formTambahAnggaran').on('submit', function(e) {
-        let isValid = true;
-        $(this).find('input[required]').each(function() {
-            if ($(this).val().trim() === '') {
-                isValid = false;
-                $(this).addClass('is-invalid');
-            } else {
-                $(this).removeClass('is-invalid');
-            }
-        });
-        
-        if (!isValid) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'Harap lengkapi semua field yang wajib diisi!',
-                confirmButtonColor: '#3085d6',
-            });
-        }
-    });
-
-    // Hapus validasi ketika user mulai mengetik
-    $('input[required]').on('input', function() {
-        if ($(this).val().trim() !== '') {
-            $(this).removeClass('is-invalid');
-        }
-    });
-
-    // SweetAlert untuk Hapus Anggaran
-    $(document).on('click', '.btn-hapus-anggaran', function() {
-        const id = $(this).data('id');
-        const tahun = $(this).data('tahun');
-        const pagu = $(this).data('pagu');
-
-        Swal.fire({
-            title: 'Hapus Anggaran?',
-            html: `Apakah Anda yakin ingin menghapus anggaran tahun <strong>${tahun}</strong> dengan pagu <strong>Rp ${pagu}</strong>?<br><br><span class="text-danger">Data yang dihapus tidak dapat dikembalikan!</span>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Menghapus...',
-                    text: 'Sedang menghapus data anggaran',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                // Submit form via AJAX
-                $.ajax({
-                    url: `{{ url('penganggaran/penganggaran') }}/${id}`,
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        _method: 'DELETE'
-                    },
-                    success: function(response) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: `Data anggaran tahun ${tahun} beserta semua data RKAS terkait berhasil dihapus`,
-                            confirmButtonColor: '#10b981',
-                            timer: 3000,
-                            showConfirmButton: true
-                        }).then(() => {
-                            // Refresh halaman untuk update data
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        let errorMessage = 'Gagal menghapus data anggaran';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal!',
-                            text: errorMessage,
-                            confirmButtonColor: '#ef4444',
-                        });
-                    }
-                });
-            }
-        });
-    });
-
-    // SweetAlert untuk Hapus RKAS Perubahan
-    $(document).on('click', '.btn-hapus-rkas-perubahan', function() {
-        const id = $(this).data('id');
-        const tahun = $(this).data('tahun');
-
-        Swal.fire({
-            title: 'Hapus RKAS Perubahan?',
-            html: `Apakah Anda yakin ingin menghapus <strong>RKAS Perubahan</strong> tahun <strong>${tahun}</strong>?<br><br><span class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Hanya data RKAS Perubahan yang akan dihapus. Data RKAS awal tetap tersimpan.</span>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#f59e0b',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Menghapus...',
-                    text: 'Sedang menghapus data RKAS Perubahan',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                // Submit form via AJAX
-                $.ajax({
-                    url: `{{ url('penganggaran/rkas-perubahan') }}/${id}`,
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        _method: 'DELETE'
-                    },
-                    success: function(response) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: `Data RKAS Perubahan tahun ${tahun} berhasil dihapus`,
-                            confirmButtonColor: '#10b981',
-                            timer: 3000,
-                            showConfirmButton: true
-                        }).then(() => {
-                            // Refresh halaman untuk update data
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        let errorMessage = 'Gagal menghapus data RKAS Perubahan';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal!',
-                            text: errorMessage,
-                            confirmButtonColor: '#ef4444',
-                        });
-                    }
-                });
-            }
-        });
-    });
-});
-
-// Handle SweetAlert untuk pesan sukses dari session
-@if (session('success'))
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: '{{ session('success') }}',
-        confirmButtonColor: '#10b981',
-        timer: 3000
-    });
-@endif
-
-@if (session('error'))
-    Swal.fire({
-        icon: 'error',
-        title: 'Gagal!',
-        text: '{{ session('error') }}',
-        confirmButtonColor: '#ef4444',
-    });
-@endif
+    // Set variabel untuk pesan session
+    @if (session('success'))
+        const successMessage = '{{ session('success') }}';
+    @endif
+    
+    @if (session('error'))
+        const errorMessage = '{{ session('error') }}';
+    @endif
 </script>
+<script src="{{ asset('assets/js/penganggaran.js') }}"></script>
 @endpush
