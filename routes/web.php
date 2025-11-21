@@ -90,26 +90,12 @@ Route::middleware(['auth'])->prefix('kop-sekolah')->group(function () {
 });
 
 Route::middleware(['auth'])->prefix('backup')->group(function () {
-
-    // Halaman utama backup & restore
     Route::get('/', [DatabaseController::class, 'index'])->name('backup.index');
-
-    // Backup database
     Route::post('/create', [DatabaseController::class, 'backup'])->name('backup.create');
-
-    // Restore database
     Route::post('/restore', [DatabaseController::class, 'restore'])->name('backup.restore');
-
-    // Get restore progress (AJAX endpoint)
     Route::get('/restore/progress', [DatabaseController::class, 'getRestoreProgress'])->name('backup.restore.progress');
-
-    // Download file backup
     Route::get('/download', [DatabaseController::class, 'download'])->name('backup.download');
-
-    // Hapus file backup
     Route::delete('/delete', [DatabaseController::class, 'delete'])->name('backup.delete');
-
-    // Reset database - perbaikan route
     Route::post('/reset', [DatabaseController::class, 'reset'])->name('database.reset');
 });
 
