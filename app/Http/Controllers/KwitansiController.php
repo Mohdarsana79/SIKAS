@@ -791,7 +791,6 @@ class KwitansiController extends Controller
     {
         try {
             $offset = $request->input('offset', 0);
-            $limit = 1000;
 
             // PERBAIKAN: Hitung total dari BukuKasUmum yang belum memiliki kwitansi
             $totalWithoutKwitansi = BukuKasUmum::whereDoesntHave('kwitansi')
@@ -829,7 +828,6 @@ class KwitansiController extends Controller
                 ->where('is_bunga_record', false)
                 ->orderBy('id')
                 ->skip($offset)
-                ->take($limit)
                 ->get();
 
             Log::info("Found {$bukuKasUmums->count()} BukuKasUmum to process");

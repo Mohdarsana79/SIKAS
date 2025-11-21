@@ -23,22 +23,20 @@
         </div>
 
         <div class="header-actions">
-            <button class="notification-btn">
-                <i class="bi bi-bell"></i>
-                <span class="notification-badge"></span>
-            </button>
-
             <div class="dropdown">
-                <button class="profile-btn dropdown-toggle" data-bs-toggle="dropdown">
-                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
-                        alt="Profile" class="profile-avatar">
+                <button class="btn p-0 border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold"
+                        style="width: 40px; height: 40px; background-color: {{ auth()->user()->getAvatarColor() }} !important; font-size: 14px;">
+                        {{ auth()->user()->getInitials() }}
+                    </div>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
+                <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="dropdown-item" style="width: 100%; text-align: left;">
-                                <i class="bi bi-box-arrow-right me-2"></i>Logout
+                            <button type="submit" class="dropdown-item d-flex align-items-center">
+                                <i class="bi bi-box-arrow-right me-2"></i>
+                                <span>Logout</span>
                             </button>
                         </form>
                     </li>
