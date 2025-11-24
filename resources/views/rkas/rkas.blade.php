@@ -318,6 +318,20 @@
     <div class="rkas-period-section">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="period-title">Periode Anggaran {{ $penganggaran->tahun_anggaran }}</h3>
+            <!-- Pastikan form search ini ada -->
+            <form method="GET" action="#" class="ms-3" id="SearchForm">
+                <div class="search-box position-relative">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" class="form-control" id="SearchInput" name="search" placeholder="Cari..."
+                        value="{{ request('search') }}" autocomplete="off" title="Cari data berdasarkan kata kunci">
+                    <div class="search-loading d-none position-absolute"
+                        style="right: 10px; top: 50%; transform: translateY(-50%);">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
             <div class="period-budget">
                 <span class="period-label">Dianggaran</span>
                 <span class="period-amount" id="totalDianggaran">
@@ -346,9 +360,9 @@
             @endphp
             @foreach ($months as $index => $month)
             <li class="nav-item" role="presentation">
-                <button class="nav-link {{ $index === 0 ? 'active' : '' }}" id="{{ strtolower($month) }}-tab"
-                    data-bs-toggle="tab" data-bs-target="#{{ strtolower($month) }}" type="button" role="tab"
-                    data-month="{{ $month }}">
+                <button class="nav-link {{ $index === 0 ? 'active' : '' }}" id="{{ strtolower($month) }}-tab" data-bs-toggle="tab"
+                    data-bs-target="#{{ strtolower($month) }}" type="button" role="tab" data-month="{{ $month }}"
+                    aria-controls="{{ strtolower($month) }}" aria-selected="{{ $index === 0 ? 'true' : 'false' }}">
                     {{ $month }}
                     @if (isset($rkasData[$month]) && $rkasData[$month]->count() > 0)
                     <span class="badge bg-success ms-2">{{ $rkasData[$month]->count() }}</span>
@@ -362,7 +376,7 @@
         <div class="tab-content" id="monthTabsContent">
             @foreach ($months as $index => $month)
             <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="{{ strtolower($month) }}"
-                role="tabpanel">
+                role="tabpanel" aria-labelledby="{{ strtolower($month) }}-tab">
                 <!-- RKAS Table -->
                 <div class="rkas-table-container {{ $hasPerubahan ? 'table-disabled' : '' }}">
                     <div class="table-responsive">
@@ -1053,6 +1067,106 @@
         border-color: #e9ecef;
         box-shadow: none;
     }
+
+    .search-loading {
+    z-index: 10;
+    }
+    
+    #SearchInput:read-only {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+    }
+    
+    .search-result-row {
+    animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+    }
+
+    /* Search Loading Styles */
+.search-loading .search-icon {
+    opacity: 0.5 !important;
+}
+
+.search-loading .form-control {
+    background-color: #f8f9fa !important;
+    opacity: 0.7;
+    cursor: not-allowed !important;
+}
+
+.search-table-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Skeleton Loading Styles */
+.skeleton-row {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+.skeleton-text {
+    height: 12px;
+    margin: 4px 0;
+}
+
+.skeleton-circle {
+    height: 30px;
+    width: 30px;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Search result animation */
+.search-result-row {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading spinner customization */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
 </style>
 <!-- JavaScript -->
 @push('scripts')

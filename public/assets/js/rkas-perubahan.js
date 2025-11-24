@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeAnggaranList();
     updateTahapCards();
 
+    // PERBAIKAN: Inisialisasi tab dengan logika yang lebih robust
+    initializeTabs();
+
+
     // ========== UTILITY FUNCTIONS ==========
     function formatNumber(num) {
         if (!num) return '0';
@@ -33,9 +37,75 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/'/g, "&#039;");
     }
 
+    // ========== UTILITY FUNCTIONS ==========
     function getActiveTab() {
         const activeTab = document.querySelector('#monthTabs .nav-link.active');
-        return activeTab ? activeTab.getAttribute('data-month').toLowerCase() : null;
+        return activeTab ? activeTab.getAttribute('data-month').toLowerCase() : 'januari'; // Default to januari
+    }
+
+    function setActiveTab(month) {
+        if (!month) {
+            month = 'januari'; // Default to januari if no month provided
+        }
+        
+        const tabButton = document.querySelector(`#monthTabs .nav-link[data-month="${month}"]`);
+        if (tabButton && !tabButton.classList.contains('active')) {
+            // Remove active class from all tabs
+            document.querySelectorAll('#monthTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab panes
+            document.querySelectorAll('#monthTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // Add active class to target tab
+            tabButton.classList.add('active');
+            
+            // Add active class to target tab pane
+            const targetPane = document.getElementById(month.toLowerCase());
+            if (targetPane) {
+                targetPane.classList.add('show', 'active');
+            }
+            
+            console.log('🔧 [TAB DEBUG] Set active tab to:', month);
+        }
+    }
+
+    // ========== TAB MANAGEMENT FUNCTIONS ==========
+    function initializeTabs() {
+        console.log('🔧 [TAB DEBUG] Initializing tabs...');
+        
+        // Cek apakah ada tab yang aktif
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        
+        if (!activeTab) {
+            // Jika tidak ada tab aktif, set januari sebagai default
+            console.log('🔧 [TAB DEBUG] No active tab found, setting januari as default');
+            setActiveTab('Januari');
+        } else {
+            console.log('🔧 [TAB DEBUG] Active tab found:', activeTab.getAttribute('data-month'));
+        }
+        
+        // Pastikan konten tab sesuai dengan tab yang aktif
+        syncTabContent();
+    }
+
+    function syncTabContent() {
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        const activeMonth = activeTab ? activeTab.getAttribute('data-month') : 'Januari';
+        
+        // Pastikan hanya satu tab pane yang aktif
+        document.querySelectorAll('#monthTabsContent .tab-pane').forEach(pane => {
+            if (pane.id === activeMonth.toLowerCase()) {
+                pane.classList.add('show', 'active');
+            } else {
+                pane.classList.remove('show', 'active');
+            }
+        });
+        
+        console.log('🔧 [TAB DEBUG] Synced tab content for:', activeMonth);
     }
 
     // ========== SELECT2 FUNCTIONS ==========
@@ -1660,13 +1730,19 @@ function createDetailAnggaranCard(bulan = '', jumlah = '', satuan = '', hargaSat
             resetModal();
         });
 
-        // Month tab click handler
+        // Month tab click handler - PERBAIKI INI
         document.querySelectorAll('.nav-link[data-month]').forEach(function(tab) {
-            tab.addEventListener('click', function() {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
                 const month = this.getAttribute('data-month');
-                refreshMonthData(month);
+                console.log('🔧 [TAB DEBUG] Tab clicked:', month);
+                
+                // Pastikan hanya satu tab yang aktif
+                setActiveTab(month);
+                refreshMonthData(month.toLowerCase());
             });
         });
+
 
         // Sisipkan form submission
         document.getElementById('sisipkanRkasForm')?.addEventListener('submit', function(e) {
@@ -1807,6 +1883,354 @@ function createDetailAnggaranCard(bulan = '', jumlah = '', satuan = '', hargaSat
 
         // PERBAIKAN PENTING: Setup delete button
         setupDeleteButton();
+
+        // Initialize RKAS search
+        initializeRkasPerubahanSearch();
+    }
+
+    // ========== RKAS SEARCH FUNCTIONS ==========
+        function initializeRkasPerubahanSearch() {
+            const searchForm = document.getElementById('SearchForm');
+            const searchInput = document.getElementById('SearchInput');
+            
+            if (!searchForm || !searchInput) {
+                console.warn('⚠️ [RKAS Perubahan SEARCH] Search elements not found');
+                return;
+            }
+    
+            let searchTimeout;
+            let isSearching = false; // Flag untuk track status search
+            
+            // Real-time search dengan debounce
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const searchTerm = e.target.value.trim();
+                
+                if (searchTerm.length === 0) {
+                    if (isSearching) {
+                        showRkasPerubahanSearchLoading(false);
+                        resetRkasPerubahanSearch();
+                        isSearching = false;
+                    }
+                    return;
+                }
+                
+                if (searchTerm.length < 2) {
+                    if (isSearching) {
+                        showRkasPerubahanSearchLoading(false);
+                        isSearching = false;
+                    }
+                    return;
+                }
+                
+                // Set flag searching dan show loading hanya setelah debounce
+                searchTimeout = setTimeout(() => {
+                    isSearching = true;
+                    showRkasPerubahanSearchLoading(true);
+                    performRkasPerubahanSearch(searchTerm);
+                }, 500);
+            });
+    
+            // Handle form submit
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const searchTerm = searchInput.value.trim();
+                if (searchTerm.length >= 2) {
+                    isSearching = true;
+                    showRkasPerubahanSearchLoading(true);
+                    performRkasPerubahanSearch(searchTerm);
+                }
+            });
+    
+            // Escape key untuk reset
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    resetRkasPerubahanSearch();
+                    searchInput.value = '';
+                    searchInput.blur();
+                    isSearching = false;
+                }
+            });
+    
+            // Clear search ketika klik icon X (jika ada)
+            const clearButton = document.querySelector('.search-clear');
+            if (clearButton) {
+                clearButton.addEventListener('click', () => {
+                    searchInput.value = '';
+                    resetRkasPerubahanSearch();
+                    isSearching = false;
+                });
+            }
+            
+            console.log('✅ [RKAS Perubahan SEARCH] Initialized successfully');
+        }
+
+    // ========== RKAS SEARCH LOADING FUNCTIONS ==========
+    function showRkasPerubahanSearchLoading(show) {
+        const searchInput = document.getElementById('SearchInput');
+        const loadingElement = document.querySelector('.search-loading');
+        const searchIcon = document.querySelector('.search-icon');
+        
+        if (loadingElement) {
+            loadingElement.classList.toggle('d-none', !show);
+        }
+        
+        if (searchInput) {
+            if (show) {
+                searchInput.setAttribute('readonly', 'readonly');
+                searchInput.style.backgroundColor = '#f8f9fa';
+                searchInput.style.opacity = '0.7';
+                searchInput.style.cursor = 'not-allowed';
+            } else {
+                searchInput.removeAttribute('readonly');
+                searchInput.style.backgroundColor = '';
+                searchInput.style.opacity = '';
+                searchInput.style.cursor = '';
+            }
+        }
+        
+        if (searchIcon) {
+            if (show) {
+                searchIcon.style.opacity = '0.5';
+            } else {
+                searchIcon.style.opacity = '';
+            }
+        }
+        
+        // Tambahkan/remove loading class pada form
+        const searchForm = document.getElementById('SearchForm');
+        if (searchForm) {
+            searchForm.classList.toggle('search-loading', show);
+        }
+    }
+
+    // Fungsi untuk menampilkan loading di tabel
+    function showTableLoading(month, show) {
+        const tableBody = document.getElementById(`table-body-${month.toLowerCase()}`);
+        
+        if (!tableBody) return;
+        
+        if (show) {
+            // Simpan konten asli sebelum menampilkan loading
+            if (!tableBody.hasAttribute('data-original-content')) {
+                tableBody.setAttribute('data-original-content', tableBody.innerHTML);
+            }
+            
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="text-center py-4">
+                        <div class="search-table-loading">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="text-muted">Mencari data...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function performRkasPerubahanSearch(searchTerm) {
+        console.log('🔍 [RKAS Perubahan SEARCH] Searching for:', searchTerm);
+        
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        const currentMonth = activeTab ? activeTab.getAttribute('data-month') : 'januari';
+        const tahun = document.querySelector('input[name="tahun_anggaran"]')?.value;
+        
+        if (!tahun) {
+            console.error('❌ [RKAS SEARCH] Tahun tidak ditemukan');
+            showRkasPerubahanSearchLoading(false);
+            showRkasPerubahanSearchError('Tahun anggaran tidak ditemukan');
+            return;
+        }
+
+        // Show loading states hanya di tabel, bukan di input
+        showTableLoading(currentMonth, true);
+
+        const params = new URLSearchParams({
+            search: searchTerm,
+            bulan: currentMonth,
+            tahun: tahun
+        });
+
+        fetch(`/rkas-perubahan/search?${params.toString()}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            }
+            
+            return data;
+        })
+        .then(data => {
+            showRkasPerubahanSearchLoading(false); // Pastikan loading di input dimatikan
+            if (data.success) {
+                handleRkasPerubahanSearchResponse(data, searchTerm, currentMonth);
+            } else {
+                throw new Error(data.message || 'Terjadi kesalahan saat mencari data');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [RKAS Perubahan SEARCH] Error:', error);
+            showRkasPerubahanSearchLoading(false); // Pastikan loading dimatikan saat error
+            showTableLoading(currentMonth, false);
+            resetRkasPerubahanSearch();
+            showRkasPerubahanSearchError('Terjadi kesalahan saat mencari data: ' + error.message);
+        });
+    }
+
+    function handleRkasPerubahanSearchResponse(data, searchTerm, currentMonth) {
+        const tableBody = document.getElementById(`table-body-${currentMonth.toLowerCase()}`);
+        
+        if (!tableBody) {
+            showRkasPerubahanSearchError(`Tabel untuk bulan ${currentMonth} tidak ditemukan`);
+            return;
+        }
+
+        // Simpan konten asli sebelum melakukan search
+        if (!tableBody.hasAttribute('data-original-content')) {
+            tableBody.setAttribute('data-original-content', tableBody.innerHTML);
+        }
+
+        if (data.data.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="text-center py-5 text-muted">
+                        <i class="bi bi-search me-2"></i>
+                        Tidak ditemukan data RKAS Perubahan dengan kata kunci: "<strong>${escapeHtml(searchTerm)}</strong>" di bulan ${currentMonth}
+                    </td>
+                </tr>
+            `;
+        } else {
+            let html = '';
+            let total = 0;
+
+            data.data.forEach((item, index) => {
+                const itemTotal = parseFloat(item.total.replace(/[^\d]/g, ''));
+                total += itemTotal;
+
+                html += `
+                <tr class="search-result-row">
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(item.program || '-')}</td>
+                    <td>${escapeHtml(item.sub_program || '-')}</td>
+                    <td>${escapeHtml(item.rincian_objek || '-')}</td>
+                    <td>${escapeHtml(item.uraian || '-')}</td>
+                    <td class="text-end">${item.dianggarkan || '0'}</td>
+                    <td class="text-end">${item.dibelanjakan || '0'}</td>
+                    <td>${escapeHtml(item.satuan || '-')}</td>
+                    <td class="text-end">${item.harga_satuan || '0'}</td>
+                    <td class="text-end"><strong>${item.total || '0'}</strong></td>
+                    <td class="text-center">${item.actions || ''}</td>
+                </tr>
+                `;
+            });
+
+            // Add total row
+            html += `
+            <tr class="table-info">
+                <td colspan="9" class="text-end"><strong>Total ${currentMonth}:</strong></td>
+                <td class="text-end"><strong>Rp ${formatNumber(total)}</strong></td>
+                <td></td>
+            </tr>
+            `;
+
+            tableBody.innerHTML = html;
+        }
+
+        showRkasPerubahanSearchInfo(data.data.length, searchTerm, currentMonth);
+        reattachRkasPerubahanEventListeners();
+    }
+
+    function showRkasPerubahanSearchLoading(show) {
+        const searchInput = document.getElementById('SearchInput');
+        const loadingElement = document.querySelector('.search-loading');
+        
+        if (loadingElement) {
+            loadingElement.classList.toggle('d-none', !show);
+        }
+        
+        if (searchInput) {
+            searchInput.readOnly = show;
+        }
+    }
+
+    function showRkasPerubahanSearchInfo(count, searchTerm, month) {
+        // Hapus notifikasi sebelumnya
+        removeRkasPerubahanSearchInfo();
+
+        if (count === 0) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: `Tidak ditemukan data dengan kata kunci: "${searchTerm}"`,
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                background: '#f8f9fa',
+                iconColor: '#6c757d'
+            });
+        } else {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Ditemukan ${count} data di bulan ${month}`,
+                text: `Kata kunci: "${searchTerm}"`,
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                background: '#d1e7dd',
+                iconColor: '#198754'
+            });
+        }
+    }
+
+    function showRkasPerubahanSearchError(message) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error Pencarian',
+            text: message,
+            confirmButtonText: 'Mengerti'
+        });
+    }
+
+    function removeRkasPerubahanSearchInfo() {
+        // Tidak perlu implementasi khusus untuk sekarang
+    }
+
+    function resetRkasPerubahanSearch() {
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        const currentMonth = activeTab ? activeTab.getAttribute('data-month').toLowerCase() : 'januari';
+        const tableBody = document.getElementById(`table-body-${currentMonth}`);
+        
+        // SELALU pastikan loading dimatikan saat reset
+        showRkasPerubahanSearchLoading(false);
+        
+        // Restore original content
+        if (tableBody && tableBody.hasAttribute('data-original-content')) {
+            tableBody.innerHTML = tableBody.getAttribute('data-original-content');
+            tableBody.removeAttribute('data-original-content');
+        }
+        
+        removeRkasPerubahanSearchInfo();
+        reattachRkasPerubahanEventListeners();
+        
+        console.log('🔍 [RKAS SEARCH] Search reset');
+    }
+
+    function reattachRkasPerubahanEventListeners() {
+        // Re-attach event listeners untuk dropdown dan tombol action
+        document.dispatchEvent(new CustomEvent('rkasSearchReset'));
     }
 
     // ========== OTHER FUNCTIONS ==========
@@ -2026,18 +2450,85 @@ function createDetailAnggaranCard(bulan = '', jumlah = '', satuan = '', hargaSat
         }
 
         document.querySelectorAll('#monthTabs .nav-link').forEach(tab => {
-            tab.addEventListener('click', function() {
-                localStorage.setItem('activeRkasTab', this.getAttribute('data-month'));
+                tab.addEventListener('click', function() {
+                    localStorage.setItem('activeRkasTab', this.getAttribute('data-month'));
+                });
             });
         });
     });
-});
+
+    // PERBAIKAN: Handle tab change event dengan lebih baik
+    document.querySelectorAll('#monthTabs .nav-link').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function() {
+            const month = this.getAttribute('data-month');
+            console.log('🔧 [TAB DEBUG] Tab shown:', month);
+            
+            // Reset search ketika pindah tab
+            resetRkasPerubahanSearch();
+            
+            // Refresh data untuk tab yang aktif
+            setTimeout(() => {
+                refreshMonthData(month.toLowerCase());
+            }, 100);
+        });
+    });
 
 // Fungsi untuk refresh data bulan yang aktif
 function refreshCurrentMonthData() {
     const activeTab = document.querySelector('#monthTabs .nav-link.active');
     if (activeTab) {
         const month = activeTab.getAttribute('data-month');
+        console.log('🔧 [TAB DEBUG] Refreshing data for:', month);
         refreshMonthData(month.toLowerCase());
     }
+}
+
+// ========== FORCE JANUARI TAB ON LOAD ==========
+function forceJanuariTabOnLoad() {
+    console.log('🔧 [TAB DEBUG] Forcing januari tab on load...');
+    
+    // Tunggu sampai DOM fully loaded
+    setTimeout(() => {
+        // Hapus semua active class
+        document.querySelectorAll('#monthTabs .nav-link').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        document.querySelectorAll('#monthTabsContent .tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Set tab januari sebagai aktif
+        const januariTab = document.querySelector('#monthTabs .nav-link[data-month="Januari"]');
+        const januariPane = document.getElementById('januari');
+        
+        if (januariTab && januariPane) {
+            januariTab.classList.add('active');
+            januariPane.classList.add('show', 'active');
+            
+            console.log('🔧 [TAB DEBUG] Successfully forced januari tab');
+            
+            // Refresh data januari
+            refreshMonthData('januari');
+        } else {
+            console.error('❌ [TAB DEBUG] Januari tab or pane not found');
+        }
+    }, 500);
+}
+
+// Panggil fungsi ini di DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // SOLUSI 2: Force januari tab on every page load
+    forceJanuariTabOnLoad();
+    
+    // Abaikan saved tab dari localStorage untuk sementara
+    localStorage.removeItem('activeRkasTab');
+});
+
+// Atau alternatif: Override saved tab dengan januari
+const savedTab = localStorage.getItem('activeRkasTab');
+if (savedTab && savedTab !== 'Januari') {
+    console.log('🔧 [TAB DEBUG] Overriding saved tab from', savedTab, 'to Januari');
+    localStorage.setItem('activeRkasTab', 'Januari');
 }

@@ -228,6 +228,20 @@
     <div class="rkas-period-section">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="period-title">Periode Anggaran {{ $penganggaran->tahun_anggaran }}</h3>
+            <!-- Pastikan form search ini ada -->
+            <form method="GET" action="#" class="ms-3" id="SearchForm">
+                <div class="search-box position-relative">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" class="form-control" id="SearchInput" name="search" placeholder="Cari..."
+                        value="{{ request('search') }}" autocomplete="off" title="Cari data berdasarkan kata kunci">
+                    <div class="search-loading d-none position-absolute"
+                        style="right: 10px; top: 50%; transform: translateY(-50%);">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
             <div class="period-budget">
                 <span class="period-label">Dianggaran</span>
                 <span class="period-amount" id="totalDianggaran">

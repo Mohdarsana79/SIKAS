@@ -29,9 +29,7 @@ use App\Http\Controllers\SetorTunaiController;
 use App\Http\Controllers\SpmthController;
 use App\Http\Controllers\SptjController;
 use App\Http\Controllers\TandaTerimaController;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
-
 
 // Redirect root to login
 Route::get('/', function () {
@@ -68,9 +66,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Rekening Belanja Search
     Route::get('/rekening-belanja/search', [RekeningBelanjaController::class, 'search'])->name('rekening-belanja.search');
-
-    // RKAS Search
-    Route::get('/rkas/search', [RkasController::class, 'search'])->name('rkas.search');
 
     // RKAS Perubahan Search
     Route::get('/rkas-perubahan/search', [RkasPerubahanController::class, 'search'])->name('rkas-perubahan.search');
@@ -120,6 +115,8 @@ Route::middleware(['auth'])->prefix('rkas-perubahan')->group(function () {
     // ROUTE BARU UNTUK PROSES PENYALINAN DATA
     Route::post('/rkas-perubahan/salin', [RkasPerubahanController::class, 'salinDariRkas'])
         ->name('rkas-perubahan.salin');
+
+    Route::get('/search', [RkasPerubahanController::class, 'search'])->name('rkas-perubahan.search');
 
     Route::get('/show/{id}', [RkasPerubahanController::class, 'show'])->name('rkas-perubahan.show');
     // Route untuk delete semua data dengan kriteria yang sama
@@ -187,19 +184,20 @@ Route::middleware(['auth'])->prefix('rkas')->group(function () {
 
     // Routes untuk salin data - HARUS SEBELUM {id}
     Route::get('/check-rkas-data', [RkasController::class, 'checkRkasData'])
-    ->name('rkas.check-rkas-data')->middleware('noCache');
+        ->name('rkas.check-rkas-data')->middleware('noCache');
     Route::get('/check-previous-perubahan', [RkasController::class, 'checkPreviousYearPerubahan'])
         ->name('rkas.check-previous-perubahan')->middleware('noCache');
     Route::post('/copy-previous-perubahan', [RkasController::class, 'copyPreviousYearPerubahan'])
         ->name('rkas.copy-previous-perubahan')->middleware('noCache');
 
+    Route::get('/search', [RkasController::class, 'search'])->name('rkas.search');
     // Routes untuk total tahap - HARUS SEBELUM {id}
     Route::get('/total-tahap1', [RkasController::class, 'getTotalTahap1'])->name('rkas.total-tahap1');
     Route::get('/total-tahap2', [RkasController::class, 'getTotalTahap2'])->name('rkas.total-tahap2');
 
     // Routes untuk bulan - HARUS SEBELUM {id}
-    Route::get('/bulan/{bulan}', [RkasController::class, 'getByMonth'])->name('rkas.getByMonth');
-    Route::get('/all-data', [RkasController::class, 'getAllData'])->name('rkas.getAllData');
+    Route::get('/bulan/{bulan}', [RkasController::class, 'getByMonth'])->name('rkas.getByMonth')->middleware('noCache');
+    Route::get('/all-data', [RkasController::class, 'getAllData'])->name('rkas.getAllData')->middleware('noCache');
     Route::get('/total/per-bulan', [RkasController::class, 'getTotalPerBulan'])->name('rkas.getTotalPerBulan');
     Route::get('/data-tahap/{tahap}', [RkasController::class, 'getDataByTahap'])->name('rkas.data-tahap');
 
@@ -210,6 +208,8 @@ Route::middleware(['auth'])->prefix('rkas')->group(function () {
     Route::delete('/{id}', [RkasController::class, 'destroy'])->name('rkas.destroy');
     Route::delete('/delete-all/{id}', [RkasController::class, 'deleteAll'])->name('rkas.delete-all');
 
+    Route::put('/{id}/update-tanggal-cetak', [PenganggaranController::class, 'updateTanggalCetak'])
+        ->name('penganggaran.update-tanggal-cetak');
     // Sisipkan dan lainnya
     Route::post('/sisipkan', [RkasController::class, 'sisipkan'])->name('rkas.sisipkan');
 
@@ -218,8 +218,8 @@ Route::middleware(['auth'])->prefix('rkas')->group(function () {
     Route::get('/rkas/generate-pdf', [RkasController::class, 'generatePdf'])->name('rkas.generate-pdf');
     Route::get('/rkas/generate-pdf-rekap/{tahun}', [RkasController::class, 'generatePdfRkaRekap'])->name('rkas.generate-pdf-rekap');
     Route::get('/rkas/generate-rka-221-pdf/{tahun}', [RkasController::class, 'generateRkaDuaSatuPdf'])->name('rkas.generate-rka-221-pdf');
-    Route::get('/rkas/get-monthly-data', [RkasController::class, 'getMonthlyData'])->name('rkas.get-monthly-data');
-    Route::get('/rkas/bulan/{month}', [RkasController::class, 'getDataByMonth'])->name('rkas.get-data-by-month');
+    Route::get('/rkas/get-monthly-data', [RkasController::class, 'getMonthlyData'])->name('rkas.get-monthly-data')->middleware('noCache');
+    Route::get('/rkas/bulan/{month}', [RkasController::class, 'getDataByMonth'])->name('rkas.get-data-by-month')->middleware('noCache');
     Route::get('/rkas/rekap-bulanan/{bulan}', [RkasController::class, 'getRekapBulanan'])->name('rkas.rekap-bulanan');
     Route::get('/rkas/rka-bulanan-pdf/{tahun}/{bulan}', [RkasController::class, 'generatePdfBulanan'])->name('rkas.rka-bulanan-pdf')->middleware('noCache');
 });
@@ -458,7 +458,7 @@ Route::middleware(['auth'])->prefix('tanda-terima')->group(function () {
     Route::get('/{id}', [TandaTerimaController::class, 'show'])->name('tanda-terima.show');
     Route::get('/{id}/preview-pdf', [TandaTerimaController::class, 'previewPdf'])->name('tanda-terima.preview-pdf');
     Route::get('/{id}/pdf', [TandaTerimaController::class, 'generatePdf'])->name('tanda-terima.pdf');
-    Route::get('/{id}/preview', [TandaTerimaController::class, 'previewPdf'])->name('tanda-terima.preview')->middleware('noCache'); 
+    Route::get('/{id}/preview', [TandaTerimaController::class, 'previewPdf'])->name('tanda-terima.preview')->middleware('noCache');
     Route::get('/{id}/preview-modal', [TandaTerimaController::class, 'previewModal'])->name('tanda-terima.preview-modal')->middleware('noCache');
     Route::delete('/{id}', [TandaTerimaController::class, 'destroy'])->name('tanda-terima.destroy');
 

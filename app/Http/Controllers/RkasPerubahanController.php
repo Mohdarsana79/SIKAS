@@ -214,10 +214,12 @@ class RkasPerubahanController extends Controller
         try {
             $searchTerm = $request->get('search', '');
             $bulan = $request->get('bulan', '');
+            $tahun = $request->get('tahun', '');
 
             Log::info('RKAS Perubahan Search called', [
                 'search_term' => $searchTerm,
-                'bulan' => $bulan
+                'bulan' => $bulan,
+                'tahun' => $tahun
             ]);
 
             if (empty($searchTerm)) {
@@ -227,8 +229,23 @@ class RkasPerubahanController extends Controller
                 ], 400);
             }
 
+             // Dapatkan penganggaran berdasarkan tahun
+            if (!$tahun) {
+                $tahun = Penganggaran::max('tahun_anggaran');
+            }
+
+            $penganggaran = Penganggaran::where('tahun_anggaran', $tahun)->first();
+
+            if (!$penganggaran) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data penganggaran untuk tahun ' . $tahun . ' tidak ditemukan'
+                ], 404);
+            }
+
             // Query dasar
             $query = RkasPerubahan::with(['kodeKegiatan', 'rekeningBelanja'])
+                ->where('penganggaran_id', $penganggaran->id)
                 ->where(function ($q) use ($searchTerm) {
                     $q->where('uraian', 'ILIKE', "%{$searchTerm}%")
                         ->orWhere('satuan', 'ILIKE', "%{$searchTerm}%")
