@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Response;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 use Exception;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseController extends Controller
 {
@@ -59,12 +60,51 @@ class DatabaseController extends Controller
     }
 
     /**
-     * Reset database - menghapus semua data dan mengarahkan ke welcome
+     * Validasi password user sebelum reset database
+     */
+    public function validatePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User tidak terautentikasi'
+                ], 401);
+            }
+
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password yang Anda masukkan salah'
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password valid'
+            ]);
+        } catch (Exception $e) {
+            Log::error('Password validation error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat validasi password'
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset database - menghapus semua data KECUALI tabel users
      */
     public function reset(Request $request)
     {
         try {
-            Log::info('Starting database reset process');
+            Log::info('Starting database reset process (preserve users) - User: ' . Auth::id());
 
             // Mulai transaksi database
             DB::beginTransaction();
@@ -75,12 +115,16 @@ class DatabaseController extends Controller
             // Disable foreign key checks untuk PostgreSQL
             DB::statement('SET session_replication_role = replica;');
 
-            // Hapus data dari semua tabel
+            // Daftar tabel yang akan di-skip (tidak direset)
+            $excludedTables = ['users', 'migrations'];
+
+            // Hapus data dari semua tabel kecuali yang dikecualikan
             foreach ($tables as $table) {
                 $tableName = $table->table_name;
 
-                // Skip tabel migrations jika ada
-                if ($tableName === 'migrations') {
+                // Skip tabel yang dikecualikan
+                if (in_array($tableName, $excludedTables)) {
+                    Log::info("Skipped table: {$tableName}");
                     continue;
                 }
 
@@ -96,6 +140,8 @@ class DatabaseController extends Controller
                         Log::info("Deleted all records from table: {$tableName}");
                     } catch (Exception $e2) {
                         Log::error("Failed to delete from table {$tableName}: " . $e2->getMessage());
+                        // Lewati tabel yang bermasalah, lanjut ke tabel berikutnya
+                        continue;
                     }
                 }
             }
@@ -103,43 +149,85 @@ class DatabaseController extends Controller
             // Re-enable foreign key checks
             DB::statement('SET session_replication_role = DEFAULT;');
 
-            // Commit transaksi
+            // Commit transaksi SEBELUM reset sequences (agar sequences bisa dihandle terpisah)
             DB::commit();
 
-            Log::info('Database reset completed successfully');
+            // Reset sequence untuk tabel yang penting (kecuali users) - TANPA TRANSACTION
+            $this->resetSequences();
 
-            // Logout user setelah reset berhasil
-            Auth::logout();
+            Log::info('Database reset completed successfully (users preserved)');
 
-            // Invalidate session
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            // Return response berdasarkan jenis request
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Database berhasil direset. Semua data telah dihapus.',
-                    'redirect_url' => url('/')
-                ], 200);
-            }
-
-            // Redirect ke halaman welcome dengan pesan sukses
-            return redirect('/')->with('success', 'Database berhasil direset. Semua data telah dihapus.');
+            // Return response sukses - TIDAK logout user
+            return response()->json([
+                'success' => true,
+                'message' => 'Database berhasil direset. Semua data telah dihapus kecuali data user.',
+                'redirect_url' => url('/dashboard')
+            ], 200);
         } catch (Exception $e) {
             // Rollback transaksi jika ada error
             DB::rollback();
 
             Log::error('Database reset failed: ' . $e->getMessage());
 
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Reset database gagal: ' . $e->getMessage()
-                ], 500);
-            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Reset database gagal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
-            return back()->with('error', 'Reset database gagal: ' . $e->getMessage());
+    private function resetSequences()
+    {
+        // Dapatkan semua sequence yang ada
+        $existingSequences = DB::select("
+        SELECT sequence_name 
+        FROM information_schema.sequences 
+        WHERE sequence_schema = 'public'
+    ");
+
+        $existingSequenceNames = array_map(function ($seq) {
+            return $seq->sequence_name;
+        }, $existingSequences);
+
+        Log::info('Existing sequences: ' . implode(', ', $existingSequenceNames));
+
+        // Reset SEMUA sequences yang ditemukan
+        foreach ($existingSequenceNames as $sequence) {
+            try {
+                // Dapatkan nama tabel dari sequence
+                $tableName = str_replace('_id_seq', '', $sequence);
+
+                // Reset sequence berdasarkan MAX(id) dari tabel
+                $maxId = DB::table($tableName)->max('id') ?? 0;
+                $newStart = $maxId + 1;
+
+                DB::statement("SELECT setval('$sequence', $newStart, false);");
+                Log::info("Reset sequence: {$sequence} to {$newStart}");
+            } catch (Exception $e) {
+                Log::warning("Failed to reset sequence {$sequence}: " . $e->getMessage());
+                continue;
+            }
+        }
+    }
+
+    /**
+     * Method debug untuk melihat tabel yang ada
+     */
+    public function debugTables()
+    {
+        try {
+            $tables = DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'");
+
+            return response()->json([
+                'success' => true,
+                'tables' => $tables,
+                'count' => count($tables)
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

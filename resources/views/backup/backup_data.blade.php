@@ -812,16 +812,17 @@
                             atau menghapus file backup dari daftar ini.</p>
                     </div>
 
+                    // reset database:
                     <div>
-                        <h6 class="d-flex align-items-center mb-3"><i
-                                class="bi bi-exclamation-triangle me-2 text-danger"></i>Reset Database:</h6>
+                        <h6 class="d-flex align-items-center mb-3">
+                            <i class="bi bi-exclamation-triangle me-2 text-danger"></i>Reset Database:
+                        </h6>
                         <ol type="1" class="ps-3 mb-0">
-                            <li class="mb-2">Fitur ini berfungsi untuk menghapus semua database yang ada dan apa bila
-                                ada database yang rusak.</li>
-                            <li class="mb-2">Sebelum melakukan reset database diharapkan untuk melakukan backup terlebih
-                                dahulu.</li>
-                            <li>Saat anda menyetujui proses reset database maka proses ini tidak dapat di hentikan
-                                sampai proses reset berhasil.</li>
+                            <li class="mb-2">Fitur ini berfungsi untuk menghapus semua database yang ada kecuali data user</li>
+                            <li class="mb-2">Sebelum melakukan reset database diharapkan untuk melakukan backup terlebih dahulu</li>
+                            <li class="mb-2">Anda harus memasukkan password untuk mengkonfirmasi reset database</li>
+                            <li>Saat anda menyetujui proses reset database maka proses ini tidak dapat di hentikan sampai proses reset
+                                berhasil</li>
                         </ol>
                     </div>
                 </div>

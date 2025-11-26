@@ -20,7 +20,7 @@ class BackupManager {
         // Show reset confirmation modal
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
-                this.showResetConfirmation();
+                this.showPasswordConfirmation();
             });
         }
 
@@ -50,7 +50,7 @@ class BackupManager {
         }
     }
 
-    showResetConfirmation() {
+    showPasswordConfirmation() {
         Swal.fire({
             title: 'Konfirmasi Reset Database',
             html: `
@@ -62,17 +62,24 @@ class BackupManager {
                             </span>
                         </div>
                         <h5 class="text-danger fw-bold">PERINGATAN!</h5>
-                        <p class="text-muted">Anda akan menghapus <strong>SEMUA DATA</strong> dalam database!</p>
+                        <p class="text-muted">Anda akan menghapus <strong>SEMUA DATA</strong> dalam database <span class="text-success">kecuali data user</span>!</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="mb-2"><i class="bx bx-info-circle me-2"></i>Yang akan terjadi:</h6>
+                        <ul class="mb-0">
+                            <li>Semua data transaksi, master, dan sekolah akan dihapus</li>
+                            <li><span class="text-success">Data user dan akun akan tetap tersimpan</span></li>
+                            <li>Anda <strong>TIDAK AKAN</strong> logout otomatis</li>
+                            <li><strong>Proses ini TIDAK DAPAT dibatalkan!</strong></li>
+                        </ul>
                     </div>
 
                     <div class="mb-3">
-                        <h6 class="mb-2"><i class="bx bx-info-circle me-2"></i>Yang akan terjadi:</h6>
-                        <ul class="mb-0">
-                            <li>Semua data dalam database akan dihapus</li>
-                            <li>Semua user akan dihapus</li>
-                            <li>Anda akan logout otomatis</li>
-                            <li><strong>Proses ini TIDAK DAPAT dibatalkan!</strong></li>
-                        </ul>
+                        <label for="swalPassword" class="form-label fw-semibold">Masukkan Password Anda:</label>
+                        <input type="password" class="form-control" id="swalPassword" 
+                            placeholder="Masukkan password untuk konfirmasi" autocomplete="current-password">
+                        <div class="form-text text-danger">Anda harus memasukkan password untuk melanjutkan reset database</div>
                     </div>
 
                     <div class="form-check">
@@ -87,25 +94,122 @@ class BackupManager {
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Ya, Reset Database!',
+            confirmButtonText: 'Lanjutkan Reset',
             cancelButtonText: 'Batal',
             reverseButtons: true,
+            focusConfirm: false,
             preConfirm: () => {
+                const password = document.getElementById('swalPassword').value;
                 const checkbox = document.getElementById('swalConfirmReset');
+                
+                if (!password) {
+                    Swal.showValidationMessage('Password harus diisi');
+                    return false;
+                }
+                
                 if (!checkbox.checked) {
                     Swal.showValidationMessage('Anda harus mencentang kotak konfirmasi terlebih dahulu');
                     return false;
                 }
-                return true;
+                
+                return { password: password };
+            },
+            didOpen: () => {
+                document.getElementById('swalPassword').focus();
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                this.executeResetDatabase();
+                const password = result.value.password;
+                this.validatePasswordAndReset(password);
             }
         });
     }
 
-    executeResetDatabase() {
+    validatePasswordAndReset(password) {
+        // Tampilkan loading
+        Swal.fire({
+            title: 'Memvalidasi Password...',
+            text: 'Sedang memverifikasi password Anda',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Validasi password ke server
+        fetch('/backup/validate-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ password: password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.close();
+                // Jika password valid, tampilkan konfirmasi final
+                this.showFinalResetConfirmation(password);
+            } else {
+                Swal.fire({
+                    title: 'Password Salah!',
+                    text: data.message || 'Password yang Anda masukkan tidak valid',
+                    icon: 'error',
+                    confirmButtonText: 'Coba Lagi'
+                }).then(() => {
+                    this.showPasswordConfirmation();
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: 'Terjadi kesalahan saat memvalidasi password',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        });
+    }
+
+    showFinalResetConfirmation(password) {
+        Swal.fire({
+            title: 'Konfirmasi Akhir Reset Database',
+            html: `
+                <div class="text-center">
+                    <div class="avatar avatar-xl mx-auto mb-3">
+                        <span class="avatar-initial rounded-circle bg-danger">
+                            <i class="bx bx-error-circle" style="font-size: 2rem;"></i>
+                        </span>
+                    </div>
+                    <h5 class="text-danger fw-bold">FINAL KONFIRMASI!</h5>
+                    <p class="text-muted">Anda yakin ingin menghapus <strong>SEMUA DATA</strong> database?</p>
+                    
+                    <div class="alert alert-danger mt-3">
+                        <i class="bx bx-error"></i>
+                        <strong>PERINGATAN:</strong> Tindakan ini tidak dapat dibatalkan!
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Reset Sekarang!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                this.executeResetDatabase(password);
+            }
+        });
+    }
+
+    executeResetDatabase(password) {
         Swal.fire({
             title: 'Mereset Database...',
             html: `
@@ -126,23 +230,80 @@ class BackupManager {
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: () => {
-                this.simulateResetProgress();
+                this.simulateResetProgress(password);
             }
         });
     }
 
-    simulateResetProgress() {
+    performActualReset(password) {
+        return fetch('/backup/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ password: password })
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            
+            if (response.ok) {
+                return response.json();
+            } else {
+                // Coba parse error message dari response
+                return response.json().then(errorData => {
+                    throw new Error(errorData.message || `HTTP Error: ${response.status}`);
+                }).catch(() => {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                });
+            }
+        })
+        .then(data => {
+            console.log('Reset response:', data);
+            if (data.success) {
+                return true;
+            } else {
+                throw new Error(data.message || 'Reset database gagal');
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting database:', error);
+            
+            // Tampilkan error detail untuk debugging
+            Swal.fire({
+                title: 'Reset Gagal!',
+                html: `
+                    <div class="text-start">
+                        <p>Terjadi kesalahan saat mereset database:</p>
+                        <div class="alert alert-danger mt-2">
+                            <strong>Error:</strong> ${error.message}
+                        </div>
+                        <small class="text-muted">Periksa log server untuk detail lebih lanjut.</small>
+                    </div>
+                `,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            
+            return false;
+        });
+    }
+
+    // Di method simulateResetProgress, update bagian success:
+    simulateResetProgress(password) {
         const progressBar = document.getElementById('resetProgressBar');
         const progressText = document.getElementById('resetProgressText');
         let progress = 0;
         
         const steps = [
             { percent: 10, text: 'Memulai proses reset database...' },
-            { percent: 25, text: 'Membersihkan tabel pengguna...' },
-            { percent: 40, text: 'Menghapus data transaksi...' },
-            { percent: 60, text: 'Menghapus data master...' },
-            { percent: 80, text: 'Mereset sequence...' },
-            { percent: 95, text: 'Finalisasi reset...' },
+            { percent: 25, text: 'Memvalidasi akses...' },
+            { percent: 40, text: 'Membersihkan data sekolah...' },
+            { percent: 60, text: 'Menghapus data transaksi...' },
+            { percent: 80, text: 'Menghapus data master...' },
+            { percent: 95, text: 'Mereset sequence...' },
             { percent: 100, text: 'Reset berhasil!' }
         ];
 
@@ -157,15 +318,10 @@ class BackupManager {
                 
                 // Kirim request actual ketika mencapai 50%
                 if (progress === 50) {
-                    this.performActualReset().then(success => {
+                    this.performActualReset(password).then(success => {
                         if (!success) {
                             clearInterval(interval);
-                            Swal.fire({
-                                title: 'Reset Gagal!',
-                                text: 'Terjadi kesalahan saat mereset database',
-                                icon: 'error',
-                                confirmButtonText: 'OK'
-                            });
+                            // Error sudah ditangani di performActualReset
                         }
                     });
                 }
@@ -174,41 +330,16 @@ class BackupManager {
                 setTimeout(() => {
                     Swal.fire({
                         title: 'Berhasil!',
-                        text: 'Database berhasil direset! Anda akan diarahkan ke halaman welcome.',
+                        text: 'Database berhasil direset! Data user tetap tersimpan.',
                         icon: 'success',
                         confirmButtonText: 'OK'
                     }).then(() => {
-                        window.location.href = '/';
+                        // Redirect ke dashboard, bukan logout
+                        window.location.href = '/dashboard';
                     });
                 }, 1000);
             }
         }, 50);
-    }
-
-    performActualReset() {
-        return fetch('/backup/reset', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('Reset database gagal');
-            }
-        })
-        .then(data => {
-            return data.success;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            return false;
-        });
     }
 
     showInfoGuide() {

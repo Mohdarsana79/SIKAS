@@ -91,14 +91,15 @@ Route::middleware(['auth'])->prefix('backup')->group(function () {
     Route::get('/restore/progress', [DatabaseController::class, 'getRestoreProgress'])->name('backup.restore.progress');
     Route::get('/download', [DatabaseController::class, 'download'])->name('backup.download');
     Route::delete('/delete', [DatabaseController::class, 'delete'])->name('backup.delete');
+    Route::post('/validate-password', [DatabaseController::class, 'validatePassword'])->name('backup.validate-password');
     Route::post('/reset', [DatabaseController::class, 'reset'])->name('database.reset');
 });
 
 Route::middleware(['auth'])->prefix('penganggaran')->group(function () {
     Route::get('/', [PenganggaranController::class, 'index'])->name('penganggaran.index');
     Route::post('/', [PenganggaranController::class, 'store'])->name('penganggaran.store');
-    Route::put('/penganggaran/{id}', [PenganggaranController::class, 'update'])->name('penganggaran.update');
-    Route::delete('/penganggaran/{id}', [PenganggaranController::class, 'destroy'])->name('penganggaran.destroy');
+    Route::put('/{id}', [PenganggaranController::class, 'update'])->name('penganggaran.update');
+    Route::delete('/{id}', [PenganggaranController::class, 'destroy'])->name('penganggaran.destroy');
 
     // untuk hapus RKAS Perubahan
     Route::delete('/rkas-perubahan/{id}', [PenganggaranController::class, 'destroyRkasPerubahan'])
