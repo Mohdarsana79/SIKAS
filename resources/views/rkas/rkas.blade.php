@@ -15,9 +15,6 @@
                 </a>
             </div>
 
-            <!-- Hidden input untuk status perubahan -->
-            {{-- <input type="hidden" id="perubahan-status" value="{{ $hasPerubahan ? 'done' : 'pending' }}"> --}}
-
             <!-- Title and Status -->
             <div class="d-flex justify-content-between align-items-start mb-4">
                 <div>
@@ -441,18 +438,6 @@
                                                         onclick="showDetailModal({{ $rkas->id }})"
                                                         style="font-size: 8pt; padding: 8px 12px; transition: all 0.2s ease;">
                                                         <i class="bi bi-eye me-2 text-primary"></i>Detail
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <!-- Di bagian dropdown menu action - GANTI SEMUA TOMBOL SISIPKAN -->
-                                                    <a class="dropdown-item d-flex align-items-center sisipkan-btn"
-                                                        href="#" data-kode-id="{{ $rkas->kode_id }}"
-                                                        data-program="{{ $rkas->kodeKegiatan ? $rkas->kodeKegiatan->program : '-' }}"
-                                                        data-kegiatan="{{ $rkas->kodeKegiatan ? $rkas->kodeKegiatan->sub_program : '-' }}"
-                                                        data-rekening-id="{{ $rkas->kode_rekening_id }}"
-                                                        data-rekening-display="{{ $rkas->rekeningBelanja ? $rkas->rekeningBelanja->kode_rekening.' - '.$rkas->rekeningBelanja->rincian_objek : '-' }}"
-                                                        style="font-size: 8pt; padding: 8px 12px; transition: all 0.2s ease;">
-                                                        <i class="bi bi-archive-fill me-2 text-warning"></i>Sisipkan
                                                     </a>
                                                 </li>
                                                 <li>

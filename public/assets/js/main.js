@@ -26,13 +26,17 @@ $(document).ready(function() {
 
     // Sidebar Toggle Functionality
     function toggleSidebar() {
+        console.log('🔄 Toggling sidebar with smooth animation');
+        
         if (window.innerWidth <= 768) {
-            // Mobile behavior
+            // Mobile behavior dengan animasi
             $sidebar.toggleClass('show');
             $sidebarBackdrop.toggleClass('show');
             $('body').toggleClass('overflow-hidden');
+            
+            console.log('📱 Mobile sidebar toggled');
         } else {
-            // Desktop behavior
+            // Desktop behavior dengan animasi
             $sidebar.toggleClass('collapsed');
             $('#mainContent').toggleClass('expanded');
             
@@ -40,7 +44,7 @@ $(document).ready(function() {
             const isCollapsed = $sidebar.hasClass('collapsed');
             localStorage.setItem('sidebarCollapsed', isCollapsed);
             
-            console.log('💾 Sidebar state saved:', isCollapsed);
+            console.log('💻 Desktop sidebar toggled, saved state:', isCollapsed);
         }
     }
 
@@ -65,15 +69,18 @@ $(document).ready(function() {
             const $target = $('#' + targetId);
             const $arrow = $this.find('.nav-arrow');
             
-            // Close other submenus
-            $('.nav-submenu').not($target).removeClass('show');
-            $('.nav-arrow').not($arrow).removeClass('rotated');
+            console.log('📂 Toggling submenu:', targetId);
             
-            // Toggle current submenu
+            // Close other submenus dengan animasi
+            $('.nav-submenu').not($target).each(function() {
+                const $otherSubmenu = $(this);
+                $otherSubmenu.removeClass('show');
+                $otherSubmenu.prev().find('.nav-arrow').removeClass('rotated');
+            });
+            
+            // Toggle current submenu dengan animasi
             $target.toggleClass('show');
             $arrow.toggleClass('rotated');
-            
-            console.log('📂 Toggled submenu:', targetId);
         });
     }
 

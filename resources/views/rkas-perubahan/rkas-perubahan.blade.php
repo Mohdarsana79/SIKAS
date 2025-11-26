@@ -369,18 +369,6 @@
                                                     </a>
                                                 </li>
                                                 <li>
-                                                    <a class="dropdown-item d-flex align-items-center" href="#"
-                                                        onclick="showSisipkanModal(
-                                                           {{ $rkas->kode_id }},
-                                                           '{{ $rkas->kodeKegiatan ? addslashes($rkas->kodeKegiatan->program) : '-' }}',
-                                                           '{{ $rkas->kodeKegiatan ? addslashes($rkas->kodeKegiatan->sub_program) : '-' }}',
-                                                           {{ $rkas->kode_rekening_id }},
-                                                           '{{ $rkas->rekeningBelanja ? addslashes($rkas->rekeningBelanja->kode_rekening . ' - ' . $rkas->rekeningBelanja->rincian_objek) : '-' }}')"
-                                                        style="font-size: 8pt; padding: 8px 12px; transition: all 0.2s ease;">
-                                                        <i class="bi bi-archive-fill me-2 text-warning"></i>Sisipkan
-                                                    </a>
-                                                </li>
-                                                <li>
                                                     <!-- PERBAIKAN: Tombol Edit yang benar -->
                                                     <a class="dropdown-item d-flex align-items-center" href="#" onclick="showEditModal({{ $rkas->id }})"
                                                         style="font-size: 8pt; padding: 8px 12px; transition: all 0.2s ease;">
@@ -435,7 +423,6 @@
 @include('rkas-perubahan.modal.tambah-rkas-perubahan')
 @include('rkas-perubahan.modal.edit-rkas-perubahan')
 @include('rkas-perubahan.modal.detail-rkas-perubahan')
-@include('rkas-perubahan.modal.sisipkan-rkas-perubahan')
 
 <!-- CSS Styles -->
 <style>

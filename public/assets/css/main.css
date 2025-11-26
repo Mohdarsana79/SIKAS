@@ -14,6 +14,15 @@
     --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
         0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Custom Easing Variables */
+    --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
+    --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
+    --ease-out-back: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --ease-in-out-back: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Default transition dengan easing */
+    --transition: all 0.4s var(--ease-in-out-cubic);
 }
 
 * {
@@ -40,14 +49,16 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     z-index: 1000;
-    transition: var(--transition);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Ubah transition */
     overflow-y: auto;
     overflow-x: hidden;
+    transform: translateX(0); /* Tambahkan ini */
 }
 
 /* Sidebar Collapsed State */
 .sidebar.collapsed {
     width: var(--sidebar-collapsed-width);
+    transform: translateX(0); /* Pastikan tidak ada transform pada desktop */
 }
 
 .sidebar.collapsed .sidebar-brand-text,
@@ -88,12 +99,12 @@ body {
     position: relative;
 }
 
-/* Sidebar Hover Effects */
+/* Sidebar Hover Effects
 .sidebar.collapsed:hover {
     width: var(--sidebar-width);
-}
+} */
 
-.sidebar.collapsed:hover .sidebar-brand-text,
+/* .sidebar.collapsed:hover .sidebar-brand-text,
 .sidebar.collapsed:hover .nav-text,
 .sidebar.collapsed:hover .nav-arrow {
     opacity: 1;
@@ -102,33 +113,33 @@ body {
     height: auto;
     margin: initial;
     padding: initial;
-}
+} */
 
-.sidebar.collapsed:hover .nav-submenu {
+/* .sidebar.collapsed:hover .nav-submenu {
     display: block !important;
-}
+} */
 
-.sidebar.collapsed:hover .sidebar-brand {
+/* .sidebar.collapsed:hover .sidebar-brand {
     justify-content: flex-start;
     padding: 1.5rem;
-}
+} */
 
-.sidebar.collapsed:hover .brand-icon {
+/* .sidebar.collapsed:hover .brand-icon {
     margin-right: 0.75rem;
-}
+} */
 
-.sidebar.collapsed:hover .nav-link {
+/* .sidebar.collapsed:hover .nav-link {
     justify-content: flex-start;
     padding: 0.75rem 1rem;
-}
+} */
 
-.sidebar.collapsed:hover .nav-icon {
+/* .sidebar.collapsed:hover .nav-icon {
     margin-right: 0.75rem;
-}
+} */
 
-.sidebar.collapsed:hover .nav-submenu .nav-link {
+/* .sidebar.collapsed:hover .nav-submenu .nav-link {
     padding-left: 3rem;
-}
+} */
 
 /* Tooltip untuk Collapsed State */
 .sidebar.collapsed .nav-link::after {
@@ -151,11 +162,11 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.sidebar.collapsed .nav-link:hover::after {
+/* .sidebar.collapsed .nav-link:hover::after {
     opacity: 1;
     visibility: visible;
     left: calc(100% + 15px);
-}
+} */
 
 .sidebar::-webkit-scrollbar {
     width: 4px;
@@ -220,11 +231,11 @@ body {
     position: relative;
 }
 
-.sidebar-nav .nav-link:hover {
+/* .sidebar-nav .nav-link:hover {
     background: rgba(255, 255, 255, 0.1);
     color: white;
     transform: translateX(4px);
-}
+} */
 
 .sidebar-nav .nav-link.active {
     background: rgba(255, 255, 255, 0.2);
@@ -259,7 +270,7 @@ body {
 
 .sidebar-nav .nav-link .nav-arrow {
     margin-left: auto;
-    transition: var(--transition);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 0.8rem;
 }
 
@@ -267,10 +278,19 @@ body {
     transform: rotate(90deg);
 }
 
+.sidebar-brand,
+.sidebar-brand .brand-icon,
+.sidebar-brand .sidebar-brand-text,
+.nav-link,
+.nav-link .nav-icon,
+.nav-link .nav-text {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .sidebar-nav .nav-submenu {
     max-height: 0;
     overflow: hidden;
-    transition: var(--transition);
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-nav .nav-submenu.show {
@@ -334,9 +354,9 @@ body {
     transition: var(--transition);
 }
 
-.header .sidebar-toggle:hover {
+/* .header .sidebar-toggle:hover {
     background: #f1f5f9;
-}
+} */
 
 .header .header-actions {
     display: flex;
@@ -643,7 +663,7 @@ body {
     z-index: 999;
     opacity: 0;
     visibility: hidden;
-    transition: var(--transition);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-overlay.show {
@@ -720,6 +740,7 @@ body {
     .sidebar {
         transform: translateX(-100%);
         width: var(--sidebar-width);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Animasi khusus untuk mobile */
     }
 
     .sidebar.show {
@@ -727,7 +748,9 @@ body {
     }
 
     .main-content {
-        margin-left: 0;
+        margin-left: var(--sidebar-width);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 100vh;
     }
 
     .header .search-box input {

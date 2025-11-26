@@ -1313,26 +1313,6 @@ class RkasPerubahanManager {
         return card;
     }
 
-    showSisipkanModal(kodeId, program, kegiatan, rekeningId, rekeningDisplay) {
-        const activeTab = document.querySelector('#monthTabs .nav-link.active');
-        const bulan = activeTab ? activeTab.getAttribute('data-month') : '';
-
-        document.getElementById('sisipkan_kode_id').value = kodeId;
-        document.getElementById('sisipkan_kode_rekening_id').value = rekeningId;
-        document.getElementById('sisipkan_bulan').value = bulan;
-        document.getElementById('sisipkan_program').value = program;
-        document.getElementById('sisipkan_kegiatan').value = kegiatan;
-        document.getElementById('sisipkan_rekening_belanja_display').value = rekeningDisplay;
-
-        document.getElementById('sisipkan_uraian').value = '';
-        document.getElementById('sisipkan_harga_satuan').value = '';
-        document.getElementById('sisipkan_jumlah').value = '';
-        document.getElementById('sisipkan_satuan').value = '';
-        document.getElementById('sisipkan_total_display').textContent = 'Rp 0';
-
-        new bootstrap.Modal(document.getElementById('sisipkanRkasModal')).show();
-    }
-
     showTahapDetail(tahap) {
         const tahapName = tahap === 1 ? 'Tahap 1 (Januari - Juni)' : 'Tahap 2 (Juli - Desember)';
         const headerClass = tahap === 1 ? 'bg-primary' : 'bg-success';
@@ -1671,51 +1651,6 @@ class RkasPerubahanManager {
                         submitBtn.disabled = false;
                     }
                 });
-            });
-        }
-
-        const sisipkanForm = document.getElementById('sisipkanRkasForm');
-        if (sisipkanForm) {
-            sisipkanForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const form = sisipkanForm;
-                const submitButton = form.querySelector('button[type="submit"]');
-                const modal = bootstrap.Modal.getInstance(document.getElementById('sisipkanRkasModal'));
-                const currentMonth = this.getActiveTab();
-
-                submitButton.innerHTML = '<span class="loading-spinner me-2"></span>Menyimpan...';
-                submitButton.disabled = true;
-
-                fetch(form.action, {
-                        method: 'POST',
-                        body: new FormData(form),
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Network response was not ok');
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            modal.hide();
-                            localStorage.setItem('activeRkasTab', currentMonth);
-                            Swal.fire('Berhasil!', data.message, 'success').then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            throw new Error(data.message || 'Gagal menyimpan data');
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire('Error', error.message, 'error');
-                    })
-                    .finally(() => {
-                        submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Simpan Data';
-                        submitButton.disabled = false;
-                    });
             });
         }
     }
@@ -2254,17 +2189,6 @@ class RkasPerubahanManager {
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="#" onclick="rkasManager.showSisipkanModal(
-                                    ${item.kode_id},
-                                    '${this.escapeHtml(item.program_kegiatan)}',
-                                    '${this.escapeHtml(item.kegiatan)}',
-                                    ${item.kode_rekening_id},
-                                    '${this.escapeHtml(item.rekening_belanja)}'
-                                )">
-                                    <i class="bi bi-archive-fill me-2 text-warning"></i>Sisipkan
-                                </a>
-                            </li>
-                            <li>
                                 <a class="dropdown-item" href="#" onclick="rkasManager.showEditModal(${item.id})">
                                     <i class="bi bi-pencil me-2"></i>Edit
                                 </a>
@@ -2410,7 +2334,5 @@ const rkasManager = new RkasPerubahanManager();
 // Expose methods to global scope for onclick attributes
 window.showEditModal = (id) => rkasManager.showEditModal(id);
 window.showDetailModal = (id) => rkasManager.showDetailModal(id);
-window.showSisipkanModal = (kodeId, program, kegiatan, rekeningId, rekeningDisplay) => 
-    rkasManager.showSisipkanModal(kodeId, program, kegiatan, rekeningId, rekeningDisplay);
 window.showTahapDetail = (tahap) => rkasManager.showTahapDetail(tahap);
 window.editFromDetail = () => rkasManager.editFromDetail();

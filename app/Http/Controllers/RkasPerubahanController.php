@@ -339,17 +339,6 @@ class RkasPerubahanController extends Controller
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item d-flex align-items-center sisipkan-btn" href="#" 
-                        data-kode-id="' . $item->kode_id . '"
-                        data-program="' . htmlspecialchars($program) . '"
-                        data-kegiatan="' . htmlspecialchars($subProgram) . '"
-                        data-rekening-id="' . $item->kode_rekening_id . '"
-                        data-rekening-display="' . htmlspecialchars($rekeningDisplay) . '"
-                        style="font-size: 8pt; padding: 8px 12px; transition: all 0.2s ease;">
-                        <i class="bi bi-archive-fill me-2 text-warning"></i>Sisipkan
-                    </a>
-                </li>
-                <li>
                     <a class="dropdown-item d-flex align-items-center"
                         href="#"
                         onclick="showEditModal(' . $item->id . ')"
@@ -911,47 +900,6 @@ class RkasPerubahanController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan saat mengupdate data: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-
-    public function sisipkan(Request $request)
-    {
-        try {
-            $request->validate([
-                'kode_id' => 'required|exists:kode_kegiatans,id',
-                'kode_rekening_id' => 'required|exists:rekening_belanjas,id',
-                'uraian' => 'required|string',
-                'harga_satuan' => 'required|numeric|min:0',
-                'jumlah' => 'required|integer|min:1',
-                'satuan' => 'required|string',
-                'tahun_anggaran' => 'required',
-                'bulan' => 'required|string',
-            ]);
-
-            $penganggaran = Penganggaran::where('tahun_anggaran', $request->tahun_anggaran)->firstOrFail();
-
-            RkasPerubahan::create([
-                'penganggaran_id' => $penganggaran->id,
-                'kode_id' => $request->kode_id,
-                'kode_rekening_id' => $request->kode_rekening_id,
-                'uraian' => $request->uraian,
-                'harga_satuan' => $request->harga_satuan,
-                'jumlah' => $request->jumlah,
-                'satuan' => $request->satuan,
-                'bulan' => $request->bulan,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Data berhasil disisipkan ke bulan ' . $request->bulan,
-                'bulan' => $request->bulan,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
             ], 500);
         }
     }
