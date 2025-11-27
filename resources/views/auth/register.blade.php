@@ -10,7 +10,7 @@
     <!-- Bootstrap 5 CSS -->
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-icons.css') }}">
     <!-- SweetAlert2 -->
     <script src="{{ asset('assets/js/sweetalert2@11.js') }}"></script>
 
@@ -259,7 +259,7 @@
                             class="form-control @error('name') is-invalid @enderror" placeholder="Enter your full name"
                             value="{{ old('name') }}" required>
                         <span class="input-group-text">
-                            <i class="fas fa-user"></i>
+                            <i class="bi bi-person-fill"></i>
                         </span>
                         @error('name')
                         <div class="invalid-feedback">
@@ -276,7 +276,7 @@
                             class="form-control @error('email') is-invalid @enderror" placeholder="Enter your email"
                             value="{{ old('email') }}" required>
                         <span class="input-group-text">
-                            <i class="fas fa-envelope"></i>
+                            <i class="bi bi-envelope"></i>
                         </span>
                         @error('email')
                         <div class="invalid-feedback">
@@ -293,7 +293,7 @@
                             class="form-control @error('password') is-invalid @enderror" placeholder="Create a password"
                             required>
                         <button type="button" class="input-group-text password-toggle">
-                            <i class="fas fa-eye"></i>
+                            <i class="bi bi-eye"></i>
                         </button>
                         @error('password')
                         <div class="invalid-feedback">
@@ -309,13 +309,13 @@
                         <input id="password_confirmation" name="password_confirmation" type="password"
                             class="form-control" placeholder="Confirm your password" required>
                         <button type="button" class="input-group-text password-toggle">
-                            <i class="fas fa-eye"></i>
+                            <i class="bi bi-eye"></i>
                         </button>
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-auth w-100 mb-3">
-                    <i class="fas fa-user-plus me-2"></i>
+                    <i class="bi bi-person-add me-2"></i>
                     Create Account
                 </button>
 

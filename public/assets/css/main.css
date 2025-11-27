@@ -99,48 +99,6 @@ body {
     position: relative;
 }
 
-/* Sidebar Hover Effects
-.sidebar.collapsed:hover {
-    width: var(--sidebar-width);
-} */
-
-/* .sidebar.collapsed:hover .sidebar-brand-text,
-.sidebar.collapsed:hover .nav-text,
-.sidebar.collapsed:hover .nav-arrow {
-    opacity: 1;
-    visibility: visible;
-    width: auto;
-    height: auto;
-    margin: initial;
-    padding: initial;
-} */
-
-/* .sidebar.collapsed:hover .nav-submenu {
-    display: block !important;
-} */
-
-/* .sidebar.collapsed:hover .sidebar-brand {
-    justify-content: flex-start;
-    padding: 1.5rem;
-} */
-
-/* .sidebar.collapsed:hover .brand-icon {
-    margin-right: 0.75rem;
-} */
-
-/* .sidebar.collapsed:hover .nav-link {
-    justify-content: flex-start;
-    padding: 0.75rem 1rem;
-} */
-
-/* .sidebar.collapsed:hover .nav-icon {
-    margin-right: 0.75rem;
-} */
-
-/* .sidebar.collapsed:hover .nav-submenu .nav-link {
-    padding-left: 3rem;
-} */
-
 /* Tooltip untuk Collapsed State */
 .sidebar.collapsed .nav-link::after {
     content: attr(data-tooltip);
@@ -161,12 +119,6 @@ body {
     pointer-events: none;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
-/* .sidebar.collapsed .nav-link:hover::after {
-    opacity: 1;
-    visibility: visible;
-    left: calc(100% + 15px);
-} */
 
 .sidebar::-webkit-scrollbar {
     width: 4px;
@@ -230,12 +182,6 @@ body {
     transition: var(--transition);
     position: relative;
 }
-
-/* .sidebar-nav .nav-link:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    transform: translateX(4px);
-} */
 
 .sidebar-nav .nav-link.active {
     background: rgba(255, 255, 255, 0.2);
@@ -353,10 +299,6 @@ body {
     border-radius: 8px;
     transition: var(--transition);
 }
-
-/* .header .sidebar-toggle:hover {
-    background: #f1f5f9;
-} */
 
 .header .header-actions {
     display: flex;

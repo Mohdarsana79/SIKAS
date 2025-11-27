@@ -4,7 +4,6 @@
     <div class="sidebar-brand d-flex align-items-center">
         <div class="brand-icon">
         <img src="{{ asset('assets/images/large.png') }}" alt="logo" width="60">
-            {{-- <i class="bi bi-currency-dollar"></i> --}}
         </div>
         <span class="sidebar-brand-text">$IKAS</span>
     </div>
