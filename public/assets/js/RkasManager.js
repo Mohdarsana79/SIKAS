@@ -1,3 +1,4 @@
+
 /**
  * RKAS Manager Class
  * Mengelola semua fungsi dan logika untuk modul RKAS
@@ -19,8 +20,17 @@ class RkasManager {
      * Format number dengan separator ribuan
      */
     formatNumber(num) {
-        if (!num) return '0';
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        if (!num && num !== 0) return '0';
+        
+        // Pastikan num adalah number
+        const numberValue = typeof num === 'string' ? 
+            parseFloat(num.replace(/[^\d]/g, '')) : 
+            parseFloat(num);
+        
+        if (isNaN(numberValue)) return '0';
+        
+        // Format tanpa desimal
+        return numberValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
     /**
@@ -295,6 +305,45 @@ class RkasManager {
         }
     }
 
+    // ========== SATUAN OTOMATIS FUNCTIONS ==========
+
+    /**
+     * Update satuan otomatis untuk form tambah
+     */
+    updateSatuanOtomatis(satuanValue) {
+        console.log('🔧 [SATUAN DEBUG] Updating satuan otomatis:', satuanValue);
+        
+        this.firstSatuanValue = satuanValue;
+        
+        const allSatuanInputs = document.querySelectorAll('#bulanContainer .satuan-input');
+        let firstCardProcessed = false;
+        
+        allSatuanInputs.forEach((input, index) => {
+            if (!firstCardProcessed) {
+                // Card pertama tetap editable
+                input.readOnly = false;
+                firstCardProcessed = true;
+            } else {
+                // Card selanjutnya di-set otomatis dan readonly
+                input.value = satuanValue;
+                input.readOnly = true;
+            }
+        });
+    }
+
+    /**
+     * Reset satuan otomatis ketika card dihapus
+     */
+    resetSatuanOtomatis() {
+        const allSatuanInputs = document.querySelectorAll('#bulanContainer .satuan-input');
+        if (allSatuanInputs.length > 0) {
+            const firstSatuanValue = allSatuanInputs[0].value;
+            if (firstSatuanValue) {
+                this.updateSatuanOtomatis(firstSatuanValue);
+            }
+        }
+    }
+
     // ========== MODAL TAMBAH FUNCTIONS ==========
 
     /**
@@ -303,6 +352,10 @@ class RkasManager {
     createAnggaranCard() {
         const card = document.createElement('div');
         card.className = 'anggaran-bulan-card';
+
+        const isFirstCard = document.querySelectorAll('#bulanContainer .anggaran-bulan-card').length === 0;
+        const shouldBeReadonly = !isFirstCard && this.firstSatuanValue;
+
         card.innerHTML = `
             <button type="button" class="delete-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M3 6h18"/><path d="M19 6v14c0 1.1-0.9 2-2 2H7c-1.1 0-2-0.9-2-2V6"/><path d="M8 6V4c0-1.1 0.9-2 2-2h4c1.1 0 2 0.9 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -322,7 +375,8 @@ class RkasManager {
                     </div>
                 </div>
                 <div class="form-col">
-                    <input type="text" class="form-control satuan-input" name="satuan[]" placeholder="Satuan" required>
+                    <input type="text" class="form-control satuan-input" name="satuan[]" placeholder="Satuan"  value="${shouldBeReadonly ? this.firstSatuanValue : ''}" 
+                ${shouldBeReadonly ? 'readonly' : ''} required>
                 </div>
             </div>
         `;
@@ -332,13 +386,26 @@ class RkasManager {
             card.remove();
             this.checkTambahButtonVisibility();
             this.updateTotalAnggaran();
+            this.resetSatuanOtomatis(); // Reset satuan setelah hapus card
         });
 
         const jumlahInput = card.querySelector('.jumlah-input');
         const bulanSelect = card.querySelector('.bulan-input');
+        const satuanInput = card.querySelector('.satuan-input');
         
         jumlahInput.addEventListener('input', this.updateTotalAnggaran.bind(this));
         bulanSelect.addEventListener('change', this.updateTotalAnggaran.bind(this));
+
+        // Event listener untuk sync satuan (hanya untuk card pertama)
+        if (isFirstCard) {
+            satuanInput.addEventListener('input', (e) => {
+                this.updateSatuanOtomatis(e.target.value);
+            });
+            
+            satuanInput.addEventListener('change', (e) => {
+                this.updateSatuanOtomatis(e.target.value);
+            });
+        }
 
         return card;
     }
@@ -366,58 +433,25 @@ class RkasManager {
      * Check tambah button visibility
      */
     checkTambahButtonVisibility() {
-        const cards = document.querySelectorAll('.anggaran-bulan-card');
-        const tambahBtnCard = document.querySelector('.btn-tambah-card');
-        if (cards.length >= 12) {
-            if (tambahBtnCard) tambahBtnCard.style.display = 'none';
-        } else {
-            if (tambahBtnCard) tambahBtnCard.style.display = 'flex';
+        const cards = document.querySelectorAll('#bulanContainer .anggaran-bulan-card');
+        const tambahBtnCard = document.querySelector('#bulanContainer .btn-tambah-card');
+        if (tambahBtnCard) {
+            if (cards.length >= 12) {
+                tambahBtnCard.style.display = 'none';
+            } else {
+                tambahBtnCard.style.display = 'flex';
+            }
         }
     }
 
     /**
-     * Initialize anggaran list
-     */
-    initializeAnggaranList() {
-        const container = document.getElementById('bulanContainer');
-        if (!container) return;
-
-        container.innerHTML = '';
-        const initialCard = this.createAnggaranCard();
-        const tambahBtnCard = this.createTambahButtonCard();
-        container.appendChild(initialCard);
-        container.appendChild(tambahBtnCard);
-        
-        this.checkTambahButtonVisibility();
-        this.updateTotalAnggaran();
-    }
-
-    /**
-     * Handle tambah bulan click
-     */
-    handleTambahBulanClick() {
-        const cards = document.querySelectorAll('.anggaran-bulan-card');
-        if (cards.length >= 12) {
-            return;
-        }
-
-        const container = document.getElementById('bulanContainer');
-        const tambahBtnCard = document.querySelector('.btn-tambah-card');
-        const newCard = this.createAnggaranCard();
-        
-        container.insertBefore(newCard, tambahBtnCard);
-        this.checkTambahButtonVisibility();
-        this.updateTotalAnggaran();
-    }
-
-    /**
-     * Update total anggaran
+     * Update total anggaran untuk form tambah
      */
     updateTotalAnggaran() {
         let total = 0;
-        const hargaSatuan = parseFloat(document.getElementById('harga_satuan')?.value) || 0;
+        const hargaSatuan = this.getTambahHargaSatuanValue();
 
-        document.querySelectorAll('.anggaran-bulan-card').forEach((card) => {
+        document.querySelectorAll('#bulanContainer .anggaran-bulan-card').forEach((card) => {
             const jumlah = parseFloat(card.querySelector('.jumlah-input')?.value) || 0;
             const monthTotal = hargaSatuan * jumlah;
 
@@ -431,6 +465,87 @@ class RkasManager {
         const totalDisplay = document.getElementById('total-anggaran');
         if (totalDisplay) {
             totalDisplay.textContent = 'Rp ' + this.formatNumber(total);
+        }
+    }
+
+    /**
+     * Initialize anggaran list untuk form tambah
+     */
+    initializeAnggaranList() {
+        const container = document.getElementById('bulanContainer');
+        if (!container) return;
+
+        // Reset container dan nilai satuan
+        container.innerHTML = '';
+        this.firstSatuanValue = '';
+        
+        // Tambah card pertama
+        const initialCard = this.createAnggaranCard();
+        const tambahBtnCard = this.createTambahButtonCard();
+        
+        container.appendChild(initialCard);
+        container.appendChild(tambahBtnCard);
+        
+        this.checkTambahButtonVisibility();
+        this.updateTotalAnggaran();
+    }
+
+    /**
+     * Handle tambah bulan click
+     */
+    handleTambahBulanClick() {
+        const cards = document.querySelectorAll('#bulanContainer .anggaran-bulan-card');
+        if (cards.length >= 12) {
+            Swal.fire('Peringatan', 'Maksimal 12 bulan dalam setahun', 'warning');
+            return;
+        }
+
+        const container = document.getElementById('bulanContainer');
+        const tambahBtnCard = document.querySelector('#bulanContainer .btn-tambah-card');
+        const newCard = this.createAnggaranCard();
+        
+        container.insertBefore(newCard, tambahBtnCard);
+        this.checkTambahButtonVisibility();
+        this.updateTotalAnggaran();
+        
+        // Update satuan otomatis untuk card baru
+        if (this.firstSatuanValue) {
+            this.updateSatuanOtomatis(this.firstSatuanValue);
+        }
+    }
+
+    /**
+     * Update total anggaran untuk form tambah
+     */
+    updateTotalAnggaran() {
+        let total = 0;
+        const hargaSatuan = this.getTambahHargaSatuanValue();
+
+        console.log('🔧 [TOTAL DEBUG] Harga satuan numeric:', hargaSatuan);
+
+        document.querySelectorAll('#bulanContainer .anggaran-bulan-card').forEach((card, index) => {
+            const jumlahInput = card.querySelector('.jumlah-input');
+            const jumlah = parseFloat(jumlahInput?.value) || 0;
+            const monthTotal = hargaSatuan * jumlah;
+
+            console.log(`🔧 [TOTAL DEBUG] Card ${index + 1}:`, {
+                jumlah: jumlah,
+                monthTotal: monthTotal
+            });
+
+            const monthTotalEl = card.querySelector('.month-total');
+            if (monthTotalEl) {
+                monthTotalEl.textContent = 'Rp ' + this.formatNumber(monthTotal);
+            }
+            total += monthTotal;
+        });
+
+        console.log('🔧 [TOTAL DEBUG] Total keseluruhan:', total);
+
+        const totalDisplay = document.getElementById('total-anggaran');
+        if (totalDisplay) {
+            totalDisplay.textContent = 'Rp ' + this.formatNumber(total);
+            console.log('🔧 [TOTAL DEBUG] Display text:', totalDisplay.textContent);
         }
     }
 
@@ -494,7 +609,7 @@ class RkasManager {
      * Reset modal
      */
     resetModal() {
-        this.firstSatuanValue = '';
+        this.firstSatuanValue = ''; // Reset nilai satuan
 
         const form = document.getElementById('tambahRkasForm');
         if (form) form.reset();
@@ -514,11 +629,12 @@ class RkasManager {
             submitBtn.disabled = false;
         }
 
-        document.querySelectorAll('.satuan-input').forEach(input => {
+        // Reset semua satuan input ke editable
+        document.querySelectorAll('#bulanContainer .satuan-input').forEach(input => {
             input.readOnly = false;
         });
 
-        this.initializeAnggaranList();
+        this.initializeAnggaranList(); // Re-initialize list
     }
 
     // ========== EDIT MODAL FUNCTIONS ==========
@@ -934,6 +1050,491 @@ class RkasManager {
         return isValid;
     }
 
+    // ========== TAMBAH DATA FUNCTIONS ==========
+
+    /**
+     * Setup tambah form submission dengan AJAX
+     */
+    setupTambahFormSubmission() {
+        const tambahForm = document.getElementById('tambahRkasForm');
+        if (tambahForm) {
+            tambahForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                console.log('🔧 [TAMBAH DEBUG] Starting form submission...');
+                
+                if (!this.validateTambahForm()) {
+                    console.error('❌ [TAMBAH DEBUG] Form validation failed');
+                    return false;
+                }
+                
+                const bulanInputs = Array.from(document.querySelectorAll('#bulanContainer select[name="bulan[]"]'));
+                const jumlahInputs = Array.from(document.querySelectorAll('#bulanContainer input[name="jumlah[]"]'));
+                const satuanInputs = Array.from(document.querySelectorAll('#bulanContainer input[name="satuan[]"]'));
+                
+                const hargaSatuanInput = document.getElementById('harga_satuan');
+                const hargaSatuanActual = document.getElementById('harga_satuan_actual');
+                
+                console.log('🔧 [TAMBAH DEBUG] Harga satuan elements:', {
+                    display: hargaSatuanInput?.value,
+                    actual: hargaSatuanActual?.value
+                });
+                
+                const formData = {
+                    bulan: bulanInputs.map(input => input.value),
+                    jumlah: jumlahInputs.map(input => input.value),
+                    satuan: satuanInputs.map(input => input.value),
+                    kode_id: document.getElementById('kegiatan')?.value,
+                    kode_rekening_id: document.getElementById('rekening_belanja')?.value,
+                    uraian: document.getElementById('uraian')?.value,
+                    harga_satuan: hargaSatuanActual?.value || document.querySelector('#tambahRkasForm input[name="harga_satuan"]')?.value,
+                    tahun_anggaran: document.querySelector('#tambahRkasForm input[name="tahun_anggaran"]')?.value
+                };
+                
+                console.log('🔧 [TAMBAH DEBUG] Form data to be sent:', formData);
+                
+                const hargaSatuanValue = this.getTambahHargaSatuanValue();
+                console.log('🔧 [TAMBAH DEBUG] Final harga satuan validation:', {
+                    value: hargaSatuanValue,
+                    isValid: hargaSatuanValue > 0
+                });
+
+                if (!hargaSatuanValue || hargaSatuanValue <= 0 || isNaN(hargaSatuanValue)) {
+                    console.error('❌ [TAMBAH DEBUG] Harga satuan invalid:', hargaSatuanValue);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Harga Satuan Invalid',
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Harga satuan harus lebih dari 0.</strong></p>
+                                <p>Nilai saat ini: <code>${hargaSatuanValue}</code></p>
+                                <p>Pastikan harga satuan sudah diisi dengan angka yang valid.</p>
+                            </div>
+                        `,
+                        confirmButtonText: 'Mengerti'
+                    });
+                    return false;
+                }
+                
+                const emptyMonths = formData.bulan.filter(month => !month);
+                if (emptyMonths.length > 0) {
+                    console.error('❌ [TAMBAH DEBUG] Empty months detected:', emptyMonths);
+                    Swal.fire('Error', 'Ada bulan yang belum dipilih. Silakan pilih bulan untuk semua card.', 'error');
+                    return false;
+                }
+                
+                const submitBtn = tambahForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menyimpan...';
+                    submitBtn.disabled = true;
+                }
+                
+                const formDataObj = new FormData(tambahForm);
+                
+                if (!formDataObj.has('harga_satuan')) {
+                    console.log('🔧 [TAMBAH DEBUG] harga_satuan missing in FormData, adding manually');
+                    if (formData.harga_satuan) {
+                        formDataObj.append('harga_satuan', formData.harga_satuan);
+                        console.log('🔧 [TAMBAH DEBUG] Added harga_satuan to FormData:', formData.harga_satuan);
+                    } else {
+                        const actualValue = document.getElementById('harga_satuan_actual')?.value;
+                        if (actualValue) {
+                            formDataObj.append('harga_satuan', actualValue);
+                            console.log('🔧 [TAMBAH DEBUG] Added harga_satuan from hidden field:', actualValue);
+                        } else {
+                            const displayValue = document.getElementById('harga_satuan')?.value.replace(/[^\d]/g, '');
+                            if (displayValue) {
+                                formDataObj.append('harga_satuan', displayValue);
+                                console.log('🔧 [TAMBAH DEBUG] Added harga_satuan from display:', displayValue);
+                            }
+                        }
+                    }
+                } else {
+                    console.log('🔧 [TAMBAH DEBUG] harga_satuan already in FormData');
+                }
+                
+                console.log('🔧 [TAMBAH DEBUG] Actual FormData content:');
+                for (let [key, value] of formDataObj.entries()) {
+                    console.log(`  ${key}:`, value);
+                }
+                
+                fetch(tambahForm.action, {
+                    method: 'POST',
+                    body: formDataObj,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(async response => {
+                    console.log('🔧 [TAMBAH DEBUG] Response status:', response.status);
+                    const responseText = await response.text();
+                    console.log('🔧 [TAMBAH DEBUG] Response text:', responseText);
+                    
+                    try {
+                        return JSON.parse(responseText);
+                    } catch (e) {
+                        throw new Error(`Invalid JSON response: ${responseText}`);
+                    }
+                })
+                .then(data => {
+                    console.log('🔧 [TAMBAH DEBUG] Tambah response:', data);
+                    if (data.success) {
+                        // Tutup modal tambah
+                        const tambahModal = bootstrap.Modal.getInstance(document.getElementById('tambahRkasModal'));
+                        if (tambahModal) {
+                            tambahModal.hide();
+                        }
+                        
+                        // Update UI tanpa reload
+                        this.handleTambahSuccess(data, formData);
+                        
+                    } else {
+                        let errorMessage = data.message || 'Gagal menambah data';
+                        if (data.errors) {
+                            errorMessage += '\n\n' + Object.values(data.errors).flat().join('\n');
+                        }
+                        throw new Error(errorMessage);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ [TAMBAH DEBUG] Error adding data:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Tambah Gagal',
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Terjadi kesalahan:</strong></p>
+                                <p>${error.message}</p>
+                                <hr>
+                                <small>Periksa data yang dimasukkan dan coba lagi.</small>
+                        </div>
+                        `,
+                        confirmButtonText: 'Mengerti'
+                    });
+                })
+                .finally(() => {
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Simpan Data';
+                        submitBtn.disabled = false;
+                    }
+                });
+            });
+        }
+    }
+
+    /**
+     * Get tambah harga satuan value
+     */
+    getTambahHargaSatuanValue() {
+        const hargaSatuanInput = document.getElementById('harga_satuan');
+        const hargaSatuanActual = document.getElementById('harga_satuan_actual');
+        
+        console.log('🔧 [TAMBAH HARGA DEBUG] Getting harga satuan value:', {
+            display: hargaSatuanInput?.value,
+            actual: hargaSatuanActual?.value,
+            hasActual: !!hargaSatuanActual?.value
+        });
+        
+        // Prioritaskan nilai dari hidden field
+        if (hargaSatuanActual && hargaSatuanActual.value) {
+            const numericValue = parseFloat(hargaSatuanActual.value);
+            console.log('🔧 [TAMBAH HARGA DEBUG] Using actual value:', numericValue);
+            return isNaN(numericValue) ? 0 : numericValue;
+        }
+        
+        // Jika hidden field kosong, ambil dari input display
+        if (!hargaSatuanInput || !hargaSatuanInput.value) {
+            console.log('🔧 [TAMBAH HARGA DEBUG] No value found, returning 0');
+            return 0;
+        }
+        
+        // Konversi dari format rupiah ke numeric
+        const numericValue = parseFloat(hargaSatuanInput.value.replace(/[^\d]/g, ''));
+        console.log('🔧 [TAMBAH HARGA DEBUG] Using display value:', numericValue);
+        
+        // Update hidden field jika perlu
+        if ((!hargaSatuanActual || !hargaSatuanActual.value) && !isNaN(numericValue)) {
+            if (hargaSatuanActual) {
+                hargaSatuanActual.value = numericValue.toString();
+                console.log('🔧 [TAMBAH HARGA DEBUG] Auto-filled hidden field:', hargaSatuanActual.value);
+            }
+        }
+        
+        return isNaN(numericValue) ? 0 : numericValue;
+    }
+
+    /**
+     * Handle successful tambah tanpa reload
+     */
+    handleTambahSuccess(data, formData) {
+        console.log('🔧 [TAMBAH DEBUG] Handling tambah success:', data);
+        
+        // Tambah data baru ke tab yang sesuai
+        this.addNewTambahData(formData);
+        
+        // Refresh data semua tab
+        this.refreshAllTabsData();
+        
+        // Update tahap cards
+        this.updateTahapCards();
+        
+        // Reset form
+        this.resetModal();
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: data.message,
+            confirmButtonText: 'OK'
+        });
+    }
+
+    /**
+     * Add new tambah data to appropriate tabs
+     */
+    addNewTambahData(formData) {
+        console.log('🔧 [TAMBAH DEBUG] Adding new data:', formData);
+        
+        // Dapatkan informasi kegiatan dan rekening dari form
+        const kegiatanSelect = document.getElementById('kegiatan');
+        const rekeningSelect = document.getElementById('rekening_belanja');
+        
+        if (!kegiatanSelect || !rekeningSelect) {
+            console.error('❌ [TAMBAH DEBUG] Select elements not found');
+            return;
+        }
+        
+        const selectedKegiatan = kegiatanSelect.options[kegiatanSelect.selectedIndex];
+        const selectedRekening = rekeningSelect.options[rekeningSelect.selectedIndex];
+        
+        const programKegiatan = selectedKegiatan.getAttribute('data-program') || '-';
+        const kegiatan = selectedKegiatan.getAttribute('data-sub-program') || '-';
+        const rekeningBelanja = selectedRekening.getAttribute('data-rincian-objek') || '-';
+        const hargaSatuan = this.formatRupiah(formData.harga_satuan);
+        
+        // Untuk setiap bulan yang ditambah, tambahkan ke tab yang sesuai
+        formData.bulan.forEach((bulan, index) => {
+            const jumlah = formData.jumlah[index];
+            const satuan = formData.satuan[index];
+            const total = jumlah * formData.harga_satuan;
+            
+            this.addDataToMonthTab(bulan, {
+                programKegiatan,
+                kegiatan,
+                rekeningBelanja,
+                uraian: formData.uraian,
+                jumlah,
+                satuan,
+                hargaSatuan,
+                total,
+                id: this.generateTempId() // ID sementara untuk operasi UI
+            });
+        });
+    }
+
+    /**
+     * Validate tambah form
+     */
+    validateTambahForm() {
+        let isValid = true;
+        const errorMessages = [];
+
+        document.querySelectorAll('#tambahRkasForm .is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+
+        const requiredFields = [
+            { element: document.getElementById('kegiatan'), name: 'Kegiatan' },
+            { element: document.getElementById('rekening_belanja'), name: 'Rekening Belanja' },
+            { element: document.getElementById('uraian'), name: 'Uraian' }
+        ];
+
+        requiredFields.forEach(field => {
+            if (!field.element || !field.element.value || !field.element.value.toString().trim()) {
+                isValid = false;
+                if (field.element) {
+                    field.element.classList.add('is-invalid');
+                }
+                errorMessages.push(`${field.name} harus diisi`);
+            }
+        });
+
+        // Validasi harga satuan
+        const hargaSatuanValue = this.getTambahHargaSatuanValue();
+        const hargaSatuanInput = document.getElementById('harga_satuan');
+        const hargaSatuanActual = document.getElementById('harga_satuan_actual');
+        
+        console.log('🔧 [TAMBAH VALIDATION DEBUG] Harga satuan validation:', {
+            displayValue: hargaSatuanInput?.value,
+            actualValue: hargaSatuanActual?.value,
+            numericValue: hargaSatuanValue
+        });
+
+        if (!hargaSatuanValue || hargaSatuanValue <= 0 || isNaN(hargaSatuanValue)) {
+            isValid = false;
+            if (hargaSatuanInput) {
+                hargaSatuanInput.classList.add('is-invalid');
+            }
+            errorMessages.push('Harga satuan harus lebih dari 0');
+        }
+
+        const selectedMonths = [];
+        const monthSelects = document.querySelectorAll('#bulanContainer .bulan-input');
+
+        if (monthSelects.length === 0) {
+            isValid = false;
+            errorMessages.push('Minimal harus ada satu bulan yang diisi');
+        }
+
+        monthSelects.forEach((select) => {
+            if (select) {
+                select.classList.remove('is-invalid');
+                const month = select.value;
+                
+                if (!month) {
+                    isValid = false;
+                    select.classList.add('is-invalid');
+                    errorMessages.push('Semua bulan harus dipilih');
+                } else {
+                    if (selectedMonths.includes(month)) {
+                        isValid = false;
+                        select.classList.add('is-invalid');
+                        errorMessages.push('Tidak boleh ada bulan yang sama dalam satu kegiatan');
+                    }
+                    selectedMonths.push(month);
+                }
+            }
+        });
+
+        const jumlahInputs = document.querySelectorAll('#bulanContainer .jumlah-input');
+        jumlahInputs.forEach((input) => {
+            if (input) {
+                input.classList.remove('is-invalid');
+                const value = parseInt(input.value);
+                if (isNaN(value) || value <= 0) {
+                    isValid = false;
+                    input.classList.add('is-invalid');
+                    errorMessages.push('Jumlah harus lebih dari 0 untuk semua bulan');
+                }
+            }
+        });
+
+        const satuanInputs = document.querySelectorAll('#bulanContainer .satuan-input');
+        satuanInputs.forEach((input) => {
+            if (input) {
+                input.classList.remove('is-invalid');
+                if (!input.value || !input.value.toString().trim()) {
+                    isValid = false;
+                    input.classList.add('is-invalid');
+                    errorMessages.push('Satuan harus diisi untuk semua bulan');
+                }
+            }
+        });
+
+        if (!isValid) {
+            const uniqueMessages = [...new Set(errorMessages)];
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: uniqueMessages.join('<br>'),
+                confirmButtonText: 'Mengerti'
+            });
+        }
+
+        return isValid;
+    }
+
+    /**
+     * Setup tambah harga satuan formatting
+     */
+    setupTambahHargaSatuanFormatting() {
+        const tambahHargaSatuanInput = document.getElementById('harga_satuan');
+        const tambahHargaSatuanActual = document.getElementById('harga_satuan_actual');
+
+        if (tambahHargaSatuanInput && tambahHargaSatuanActual) {
+            console.log('🔧 [TAMBAH HARGA DEBUG] Initializing tambah harga satuan event listeners');
+            
+            let isTambahFormatting = false;
+
+            const updateHiddenHargaSatuan = (value) => {
+                if (tambahHargaSatuanActual) {
+                    const numericValue = value.replace(/[^\d]/g, '');
+                    tambahHargaSatuanActual.value = numericValue;
+                    console.log('🔧 [TAMBAH HARGA DEBUG] Updated hidden field:', numericValue);
+                }
+            };
+
+            tambahHargaSatuanInput.addEventListener('input', (e) => {
+                if (isTambahFormatting) return;
+                
+                isTambahFormatting = true;
+                
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [TAMBAH HARGA DEBUG] Input event, raw value:', value);
+                
+                if (value) {
+                    const formattedValue = this.formatRupiah(value);
+                    input.value = formattedValue;
+                    
+                    updateHiddenHargaSatuan(value);
+                } else {
+                    input.value = '';
+                    updateHiddenHargaSatuan('');
+                }
+                
+                isTambahFormatting = false;
+                setTimeout(() => this.updateTotalAnggaran(), 50);
+            });
+
+            tambahHargaSatuanInput.addEventListener('blur', (e) => {
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [TAMBAH HARGA DEBUG] Blur event, raw value:', value);
+                
+                if (value) {
+                    const formattedValue = this.formatRupiah(value);
+                    input.value = formattedValue;
+                    
+                    updateHiddenHargaSatuan(value);
+                } else {
+                    updateHiddenHargaSatuan('');
+                }
+                this.updateTotalAnggaran();
+            });
+
+            tambahHargaSatuanInput.addEventListener('focus', (e) => {
+                const input = e.target;
+                let value = input.value.replace(/[^\d]/g, '');
+                
+                console.log('🔧 [TAMBAH HARGA DEBUG] Focus event, raw value:', value);
+                
+                if (value) {
+                    input.value = value; // Tampilkan tanpa format saat focus
+                }
+            });
+
+            tambahHargaSatuanInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.replace(/[^\d]/g, '');
+                    if (value) {
+                        const formattedValue = this.formatRupiah(value);
+                        e.target.value = formattedValue;
+                        updateHiddenHargaSatuan(value);
+                    }
+                    this.updateTotalAnggaran();
+                }
+            });
+        } else {
+            console.warn('🔧 [TAMBAH HARGA DEBUG] Harga satuan elements not found');
+        }
+    }
+
     /**
      * Setup edit harga satuan formatting
      */
@@ -1023,9 +1624,11 @@ class RkasManager {
         }
     }
 
+    // ========== UPDATE FUNCTIONS ==========
+
     /**
-     * Setup edit form submission
-    */
+     * Setup edit form submission dengan AJAX
+     */
     setupEditFormSubmission() {
         const editForm = document.getElementById('editRkasForm');
         if (editForm) {
@@ -1058,7 +1661,8 @@ class RkasManager {
                     kode_id: document.getElementById('edit_kegiatan')?.value,
                     kode_rekening_id: document.getElementById('edit_rekening_belanja')?.value,
                     uraian: document.getElementById('edit_uraian')?.value,
-                    harga_satuan: hargaSatuanActual?.value || document.querySelector('#editRkasForm input[name="harga_satuan"]')?.value
+                    harga_satuan: hargaSatuanActual?.value || document.querySelector('#editRkasForm input[name="harga_satuan"]')?.value,
+                    tahun_anggaran: document.querySelector('#editRkasForm input[name="tahun_anggaran"]')?.value
                 };
                 
                 console.log('🔧 [UPDATE DEBUG] Form data to be sent:', formData);
@@ -1129,6 +1733,9 @@ class RkasManager {
                     console.log(`  ${key}:`, value);
                 }
                 
+                // Simpan ID data yang sedang di-edit untuk referensi
+                const mainDataId = document.getElementById('edit_main_data_id')?.value;
+                
                 fetch(editForm.action, {
                     method: 'POST',
                     body: formDataObj,
@@ -1151,18 +1758,15 @@ class RkasManager {
                 .then(data => {
                     console.log('🔧 [UPDATE DEBUG] Update response:', data);
                     if (data.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: data.message,
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            const editModal = bootstrap.Modal.getInstance(document.getElementById('editRkasModal'));
-                            if (editModal) {
-                                editModal.hide();
-                            }
-                            location.reload();
-                        });
+                        // Tutup modal edit
+                        const editModal = bootstrap.Modal.getInstance(document.getElementById('editRkasModal'));
+                        if (editModal) {
+                            editModal.hide();
+                        }
+                        
+                        // Update UI tanpa reload
+                        this.handleUpdateSuccess(data, mainDataId, formData);
+                        
                     } else {
                         let errorMessage = data.message || 'Gagal mengupdate data';
                         if (data.errors) {
@@ -1195,6 +1799,205 @@ class RkasManager {
                 });
             });
         }
+    }
+
+    /**
+     * Handle successful update tanpa reload
+     */
+    handleUpdateSuccess(data, oldMainDataId, formData) {
+        console.log('🔧 [UPDATE DEBUG] Handling update success:', data);
+        
+        // Hapus data lama dari semua tab
+        this.removeOldData(oldMainDataId, formData);
+        
+        // Tambah data baru ke tab yang sesuai
+        this.addNewData(formData);
+        
+        // Refresh data semua tab
+        this.refreshAllTabsData();
+        
+        // Update tahap cards
+        this.updateTahapCards();
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: data.message,
+            confirmButtonText: 'OK'
+        });
+    }
+
+    /**
+     * Remove old data from all tabs
+     */
+    removeOldData(oldMainDataId, formData) {
+        console.log('🔧 [UPDATE DEBUG] Removing old data for ID:', oldMainDataId);
+        
+        // Hapus berdasarkan kriteria data lama
+        const tables = document.querySelectorAll('.rkas-table');
+        
+        tables.forEach(table => {
+            const rows = table.querySelectorAll('tbody tr:not(.table-info)');
+            rows.forEach(row => {
+                // Cari row yang sesuai dengan kriteria data lama
+                const uraianCell = row.querySelector('td:nth-child(5)');
+                if (uraianCell && uraianCell.textContent.trim() === formData.uraian) {
+                    row.remove();
+                    console.log('🔧 [UPDATE DEBUG] Removed old row');
+                }
+            });
+            
+            // Update nomor urut dan total
+            this.updateRowNumbers(table);
+            this.updateMonthTotal(table);
+        });
+    }
+
+    /**
+     * Add new data to appropriate tabs
+     */
+    addNewData(formData) {
+        console.log('🔧 [UPDATE DEBUG] Adding new data:', formData);
+        
+        // Dapatkan informasi kegiatan dan rekening dari form
+        const kegiatanSelect = document.getElementById('edit_kegiatan');
+        const rekeningSelect = document.getElementById('edit_rekening_belanja');
+        
+        if (!kegiatanSelect || !rekeningSelect) {
+            console.error('❌ [UPDATE DEBUG] Select elements not found');
+            return;
+        }
+        
+        const selectedKegiatan = kegiatanSelect.options[kegiatanSelect.selectedIndex];
+        const selectedRekening = rekeningSelect.options[rekeningSelect.selectedIndex];
+        
+        const programKegiatan = selectedKegiatan.getAttribute('data-program') || '-';
+        const kegiatan = selectedKegiatan.getAttribute('data-sub-program') || '-';
+        const rekeningBelanja = selectedRekening.getAttribute('data-rincian-objek') || '-';
+        const hargaSatuan = this.formatRupiah(formData.harga_satuan);
+        
+        // Untuk setiap bulan yang di-update, tambahkan ke tab yang sesuai
+        formData.bulan.forEach((bulan, index) => {
+            const jumlah = formData.jumlah[index];
+            const satuan = formData.satuan[index];
+            const total = jumlah * formData.harga_satuan;
+            
+            this.addDataToMonthTab(bulan, {
+                programKegiatan,
+                kegiatan,
+                rekeningBelanja,
+                uraian: formData.uraian,
+                jumlah,
+                satuan,
+                hargaSatuan,
+                total,
+                id: this.generateTempId() // ID sementara untuk operasi UI
+            });
+        });
+    }
+
+    /**
+     * Add data to specific month tab
+     */
+    addDataToMonthTab(month, data) {
+        const tableBody = document.getElementById(`table-body-${month.toLowerCase()}`);
+        if (!tableBody) {
+            console.error('❌ [UPDATE DEBUG] Table body not found for month:', month);
+            return;
+        }
+        
+        // Cek jika ada row "no data"
+        const noDataRow = tableBody.querySelector('.no-data-row');
+        if (noDataRow) {
+            noDataRow.remove();
+        }
+        
+        // Hitung jumlah row yang ada (exclude total row)
+        const existingRows = tableBody.querySelectorAll('tr:not(.table-info)');
+        const rowNumber = existingRows.length + 1;
+        
+        // Buat row baru
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td>${rowNumber}</td>
+            <td>${this.escapeHtml(data.programKegiatan)}</td>
+            <td>${this.escapeHtml(data.kegiatan)}</td>
+            <td>${this.escapeHtml(data.rekeningBelanja)}</td>
+            <td>${this.escapeHtml(data.uraian)}</td>
+            <td class="text-end">${data.jumlah}</td>
+            <td class="text-end">0</td>
+            <td>${this.escapeHtml(data.satuan)}</td>
+            <td class="text-end">Rp ${this.formatNumber(data.hargaSatuan)}</td>
+            <td class="text-end"><strong>Rp ${this.formatNumber(data.total)}</strong></td>
+            <td class="text-center">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                        id="actionDropdown${data.id}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionDropdown${data.id}">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="window.rkasManager.showDetailModal(${data.id})">
+                                <i class="bi bi-eye me-2"></i>Detail
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="window.rkasManager.showEditModal(${data.id})">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </td>
+        `;
+        
+        // Tambahkan row sebelum total row
+        const totalRow = tableBody.querySelector('tr.table-info');
+        if (totalRow) {
+            tableBody.insertBefore(newRow, totalRow);
+        } else {
+            // Jika tidak ada total row, buat baru
+            tableBody.appendChild(newRow);
+            this.addTotalRow(tableBody, month);
+        }
+        
+        // Update total bulan
+        this.updateMonthTotal(tableBody);
+        
+        console.log('🔧 [UPDATE DEBUG] Added data to month:', month);
+    }
+
+    /**
+     * Add total row to table
+     */
+    addTotalRow(tableBody, month) {
+        const totalRow = document.createElement('tr');
+        totalRow.className = 'table-info';
+        totalRow.innerHTML = `
+            <td colspan="9" class="text-end"><strong>Total ${month}:</strong></td>
+            <td class="text-end"><strong>Rp 0</strong></td>
+            <td></td>
+        `;
+        tableBody.appendChild(totalRow);
+    }
+
+    /**
+     * Generate temporary ID for UI operations
+     */
+    generateTempId() {
+        return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    /**
+     * Refresh all tabs data from server
+     */
+    refreshAllTabsData() {
+        const months = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 
+                    'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
+        
+        months.forEach(month => {
+            this.refreshMonthData(month);
+        });
     }
 
     // ========== DELETE FUNCTIONS ==========
@@ -1271,10 +2074,10 @@ class RkasManager {
     }
 
     /**
-     * Delete all data
+     * Delete all data dengan AJAX
      */
     deleteAllData(mainDataId) {
-        console.log('🔧 [DELETE DEBUG] Starting delete process for ID:', mainDataId);
+        console.log('🔧 [DELETE DEBUG] Starting delete all process for ID:', mainDataId);
         
         const deleteBtn = document.getElementById('btnDeleteAllData');
         const originalHtml = deleteBtn.innerHTML;
@@ -1287,6 +2090,7 @@ class RkasManager {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
         })
         .then(response => {
@@ -1297,7 +2101,7 @@ class RkasManager {
             return response.json();
         })
         .then(data => {
-            console.log('🔧 [DELETE DEBUG] Delete response:', data);
+            console.log('🔧 [DELETE DEBUG] Delete all response:', data);
             if (data.success) {
                 // Tutup modal edit
                 const editModal = bootstrap.Modal.getInstance(document.getElementById('editRkasModal'));
@@ -1305,13 +2109,14 @@ class RkasManager {
                     editModal.hide();
                 }
                 
+                // Refresh semua data tanpa reload
+                this.refreshAllTabsData();
+                
                 Swal.fire({
                     icon: 'success',
                     title: 'Berhasil!',
                     text: data.message,
                     confirmButtonText: 'OK'
-                }).then(() => {
-                    location.reload();
                 });
             } else {
                 throw new Error(data.message || 'Gagal menghapus data');
@@ -1331,6 +2136,21 @@ class RkasManager {
             deleteBtn.disabled = false;
             console.log('🔧 [DELETE DEBUG] Delete process completed');
         });
+    }
+
+    /**
+     * Refresh all tabs data
+     */
+    refreshAllTabsData() {
+        const months = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 
+                    'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
+        
+        months.forEach(month => {
+            this.refreshMonthData(month);
+        });
+        
+        // Update tahap cards
+        this.updateTahapCards();
     }
 
     // ========== GLOBAL FUNCTIONS ==========
@@ -2585,6 +3405,10 @@ class RkasManager {
         this.initializeTabs();
         this.initializeRkasSearch();
 
+        // Setup tambah form
+        this.setupTambahFormSubmission();
+        this.setupTambahHargaSatuanFormatting();
+
         console.log('=== RKAS MANAGER INITIALIZATION COMPLETE ===');
     }
 
@@ -2594,24 +3418,20 @@ class RkasManager {
     setupEventListeners() {
         // Input changes
         document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('satuan-input')) {
-                this.updateSatuanOtomatis(e.target.value);
+            // Untuk form tambah
+            if (e.target.classList.contains('satuan-input') && 
+                e.target.closest('#tambahRkasModal')) {
+                // Handle oleh method terpisah
             }
-            if (e.target.classList.contains('jumlah-input') || e.target.id === 'harga_satuan') {
+            if ((e.target.classList.contains('jumlah-input') || e.target.id === 'harga_satuan') &&
+                e.target.closest('#tambahRkasModal')) {
                 this.updateTotalAnggaran();
             }
-        });
-
-        // Form submission - PERBAIKAN: gunakan arrow function
-        document.getElementById('tambahRkasForm')?.addEventListener('submit', (e) => {
-            if (!this.validateForm()) {
-                e.preventDefault();
-                return false;
-            }
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menyimpan...';
-                submitBtn.disabled = true;
+            
+            // Untuk form edit (jika ada)
+            if (e.target.classList.contains('satuan-input') && 
+                e.target.closest('#editRkasModal')) {
+                // Handle oleh method edit
             }
         });
 
@@ -2675,43 +3495,164 @@ class RkasManager {
         }
     }
 
+    // ========== DELETE FUNCTIONS ==========
+
     /**
-     * Delete RKAS
+     * Delete single RKAS data dengan AJAX
      */
     deleteRkas(id) {
+        console.log('🔧 [DELETE DEBUG] Starting single delete for ID:', id);
+        
         const confirmBtn = document.getElementById('confirmDeleteBtn');
-        confirmBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menghapus...';
-        confirmBtn.disabled = true;
-        const currentMonth = this.getActiveTab();
+        if (confirmBtn) {
+            confirmBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menghapus...';
+            confirmBtn.disabled = true;
+        }
 
         fetch(`/rkas/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Content-Type': 'application/json',
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('🔧 [DELETE DEBUG] Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('🔧 [DELETE DEBUG] Delete response:', data);
+            if (data.success) {
+                // Tutup modal delete
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteRkasModal'));
+                if (deleteModal) {
+                    deleteModal.hide();
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    localStorage.setItem('activeRkasTab', currentMonth);
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRkasModal'));
-                    modal.hide();
-                    Swal.fire('Berhasil!', 'Data berhasil dihapus', 'success').then(() => {
-                        location.reload();
-                    });
-                } else {
-                    throw new Error(data.message || 'Gagal menghapus data');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire('Error', 'Terjadi kesalahan saat menghapus data: ' + error.message, 'error');
-            })
-            .finally(() => {
+                
+                // Hapus row dari tabel tanpa reload
+                this.removeRkasRow(id);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: data.message,
+                    confirmButtonText: 'OK'
+                });
+                
+                // Refresh data tab aktif
+                this.refreshCurrentTabData();
+                
+            } else {
+                throw new Error(data.message || 'Gagal menghapus data');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [DELETE DEBUG] Error deleting data:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hapus Gagal',
+                text: 'Terjadi kesalahan saat menghapus data: ' + error.message,
+                confirmButtonText: 'Mengerti'
+            });
+        })
+        .finally(() => {
+            if (confirmBtn) {
                 confirmBtn.innerHTML = '<i class="bi bi-trash me-2"></i>Ya, Hapus Data';
                 confirmBtn.disabled = false;
+            }
+        });
+    }
+
+    /**
+     * Remove RKAS row from table
+     */
+    removeRkasRow(id) {
+        // Cari semua tabel di semua tab
+        const tables = document.querySelectorAll('.rkas-table');
+        
+        tables.forEach(table => {
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                // Cari tombol delete di row yang sesuai dengan ID
+                const deleteBtn = row.querySelector(`[onclick*="showDeleteModal(${id})"]`);
+                if (deleteBtn) {
+                    row.remove();
+                    console.log('🔧 [DELETE DEBUG] Removed row for ID:', id);
+                    
+                    // Update nomor urut
+                    this.updateRowNumbers(table);
+                    
+                    // Update total bulan
+                    this.updateMonthTotal(table);
+                }
             });
+        });
+    }
+
+    /**
+     * Update row numbers after deletion
+     */
+    updateRowNumbers(table) {
+        const rows = table.querySelectorAll('tbody tr:not(.table-info)');
+        rows.forEach((row, index) => {
+            const firstCell = row.querySelector('td:first-child');
+            if (firstCell) {
+                firstCell.textContent = index + 1;
+            }
+        });
+    }
+
+    /**
+     * Update month total after deletion
+     */
+    updateMonthTotal(table) {
+        let total = 0;
+        const rows = table.querySelectorAll('tbody tr:not(.table-info)');
+        
+        rows.forEach(row => {
+            const totalCell = row.querySelector('td:nth-child(10)');
+            if (totalCell) {
+                const totalText = totalCell.textContent.replace(/[^\d]/g, '');
+                total += parseInt(totalText) || 0;
+            }
+        });
+        
+        // Update total row
+        const totalRow = table.querySelector('tr.table-info');
+        if (totalRow) {
+            const totalCell = totalRow.querySelector('td:nth-child(2)');
+            if (totalCell) {
+                totalCell.innerHTML = `<strong>Total ${this.getCurrentMonth()}:</strong>`;
+            }
+            
+            const amountCell = totalRow.querySelector('td:nth-child(1)');
+            if (amountCell) {
+                amountCell.innerHTML = `<strong>Rp ${this.formatNumber(total)}</strong>`;
+            }
+        }
+    }
+
+    /**
+     * Get current active month
+     */
+    getCurrentMonth() {
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        return activeTab ? activeTab.getAttribute('data-month') : 'Januari';
+    }
+
+    /**
+     * Refresh current tab data
+     */
+    refreshCurrentTabData() {
+        const activeTab = document.querySelector('#monthTabs .nav-link.active');
+        if (activeTab) {
+            const month = activeTab.getAttribute('data-month').toLowerCase();
+            this.refreshMonthData(month);
+        }
     }
 }
 

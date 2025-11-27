@@ -1,5 +1,4 @@
 <!-- Modal Edit RKAS -->
-<!-- Modal Edit RKAS -->
 <div class="modal fade" id="editRkasModal" tabindex="-1" aria-labelledby="editRkasModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">

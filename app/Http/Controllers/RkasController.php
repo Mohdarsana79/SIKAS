@@ -247,7 +247,10 @@ class RkasController extends Controller
             $penganggaran = Penganggaran::where('tahun_anggaran', $tahun)->first();
 
             if (! $penganggaran) {
-                return back()->with('error', 'Data penganggaran untuk tahun ' . $tahun . ' belum tersedia.');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data penganggaran untuk tahun ' . $tahun . ' belum tersedia.',
+                ], 422);
             }
 
             DB::beginTransaction();
@@ -258,8 +261,13 @@ class RkasController extends Controller
 
             // Check for duplicate months
             if (count($bulanArray) !== count(array_unique($bulanArray))) {
-                return back()->withErrors(['bulan' => 'Tidak boleh ada bulan yang sama dalam satu kegiatan.']);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak boleh ada bulan yang sama dalam satu kegiatan.',
+                ], 422);
             }
+
+            $createdRecords = [];
 
             // Create RKAS entries for each month
             for ($i = 0; $i < count($bulanArray); $i++) {
@@ -274,10 +282,13 @@ class RkasController extends Controller
                 if ($exists) {
                     DB::rollBack();
 
-                    return back()->withErrors(['bulan' => "Data untuk bulan {$bulanArray[$i]} sudah ada dengan kegiatan dan rekening yang sama."]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Data untuk bulan {$bulanArray[$i]} sudah ada dengan kegiatan dan rekening yang sama.",
+                    ], 422);
                 }
 
-                Rkas::create([
+                $rkas = Rkas::create([
                     'penganggaran_id' => $penganggaran->id,
                     'kode_id' => $request->kode_id,
                     'kode_rekening_id' => $request->kode_rekening_id,
@@ -287,16 +298,45 @@ class RkasController extends Controller
                     'jumlah' => $jumlahArray[$i],
                     'satuan' => $satuanArray[$i],
                 ]);
+
+                $createdRecords[] = $rkas;
             }
 
             DB::commit();
 
-            return redirect()->route('rkas.index')->with('success', 'Data RKAS berhasil ditambahkan.');
+            // Dapatkan data yang baru dibuat untuk response
+            $newData = Rkas::with(['kodeKegiatan', 'rekeningBelanja'])
+                ->whereIn('id', collect($createdRecords)->pluck('id'))
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data RKAS berhasil ditambahkan untuk ' . count($createdRecords) . ' bulan.',
+                'created_count' => count($createdRecords),
+                'months' => $bulanArray,
+                'new_data' => $newData->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'program_kegiatan' => $item->kodeKegiatan->program ?? '-',
+                        'kegiatan' => $item->kodeKegiatan->sub_program ?? '-',
+                        'rekening_belanja' => $item->rekeningBelanja->rincian_objek ?? '-',
+                        'uraian' => $item->uraian,
+                        'jumlah' => $item->jumlah,
+                        'satuan' => $item->satuan,
+                        'harga_satuan' => $item->harga_satuan,
+                        'total' => $item->jumlah * $item->harga_satuan,
+                        'bulan' => $item->bulan
+                    ];
+                })
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error storing RKAS: ' . $e->getMessage());
 
-            return back()->withErrors(['error' => 'Terjadi kesalahan saat menyimpan data.']);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -567,10 +607,30 @@ class RkasController extends Controller
 
                 DB::commit();
 
+                // Dapatkan data yang baru dibuat untuk response
+                $newData = Rkas::with(['kodeKegiatan', 'rekeningBelanja'])
+                    ->whereIn('id', collect($createdRecords)->pluck('id'))
+                    ->get();
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Data RKAS berhasil diupdate untuk ' . count($createdRecords) . ' bulan.',
-                    'redirect' => route('rkas.index', ['tahun' => $request->tahun_anggaran]),
+                    'updated_count' => count($createdRecords),
+                    'months' => $bulanArray,
+                    'new_data' => $newData->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'program_kegiatan' => $item->kodeKegiatan->program ?? '-',
+                            'kegiatan' => $item->kodeKegiatan->sub_program ?? '-',
+                            'rekening_belanja' => $item->rekeningBelanja->rincian_objek ?? '-',
+                            'uraian' => $item->uraian,
+                            'jumlah' => $item->jumlah,
+                            'satuan' => $item->satuan,
+                            'harga_satuan' => $item->harga_satuan,
+                            'total' => $item->jumlah * $item->harga_satuan,
+                            'bulan' => $item->bulan
+                        ];
+                    })
                 ]);
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -597,6 +657,7 @@ class RkasController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Data RKAS berhasil dihapus.',
+                'deleted_id' => $id // Tambahkan ini untuk referensi
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting RKAS: ' . $e->getMessage());
