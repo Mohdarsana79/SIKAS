@@ -3270,22 +3270,28 @@ class BukuKasUmumController extends Controller
 
         // DATA PENARIKAN TUNAI
         foreach ($penarikanTunais as $penarikan) {
+            $tanggalPenarikan = \Carbon\Carbon::parse($penarikan->tanggal_penarikan);
+            $bulanPenarikan = $tanggalPenarikan->month;
+            $sumberDana = ($bulanPenarikan <= 6) ? 'BOSP Tahap 1' : 'BOSP Tahap 2';
             $rowsData[] = [
                 'tanggal' => \Carbon\Carbon::parse($penarikan->tanggal_penarikan)->format('d-m-Y'),
                 'kode_rekening' => '-',
                 'no_bukti' => '-',
-                'uraian' => 'Penarikan Tunai ' . $penerimaan->sumber_dana . ' T.A ' . $tahun,
+                'uraian' => 'Penarikan Tunai ' . $sumberDana . ' T.A ' . $tahun,
                 'penerimaan' => 0,
                 'pengeluaran' => $penarikan->jumlah_penarikan
             ];
         }
 
         foreach ($terimaTunais as $terima) {
+            $tanggalPenarikan = \Carbon\Carbon::parse($terima->tanggal_penarikan);
+            $bulanPenarikan = $tanggalPenarikan->month;
+            $sumberDana = ($bulanPenarikan <= 6) ? 'BOSP Tahap 1' : 'BOSP Tahap 2';
             $rowsData[] = [
                 'tanggal' => \Carbon\Carbon::parse($terima->tanggal_penarikan)->format('d/m/Y'),
                 'kode_rekening' => '-',
                 'no_bukti' => '-',
-                'uraian' => 'Terima Tunai ' . $penerimaan->sumber_dana . ' T.A ' . $tahun,
+                'uraian' => 'Terima Tunai ' . $sumberDana . ' T.A ' . $tahun,
                 'penerimaan' => $terima->jumlah_penarikan,
                 'pengeluaran' => 0
             ];

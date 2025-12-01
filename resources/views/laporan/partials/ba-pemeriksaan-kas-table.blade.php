@@ -114,13 +114,13 @@
         </div>
 
         <!-- DEBUG: Tambahkan section debug untuk melihat data aktual -->
-        <div class="mt-3 p-3 bg-light rounded" style="font-size: 8pt;">
+        {{-- <div class="mt-3 p-3 bg-light rounded" style="font-size: 8pt;">
             <strong>DEBUG INFO:</strong><br>
             totalUangKertasLogam: {{ number_format($totalUangKertasLogam, 0, ',', '.') }}<br>
             saldoBank: {{ number_format($saldoBank, 0, ',', '.') }}<br>
             totalKas: {{ number_format($totalKas, 0, ',', '.') }}<br>
             saldoBuku: {{ number_format($saldoBuku, 0, ',', '.') }}<br>
             perbedaan: {{ number_format($perbedaan, 0, ',', '.') }}
-        </div>
+        </div> --}}
     </div>
 </div>

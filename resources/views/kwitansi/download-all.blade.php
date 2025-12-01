@@ -494,7 +494,7 @@
             <table style="border: none; border-collapse: collapse; width:100%; text-align:center">
                 <tr>
                     <td>
-                        <div class="signature-block" style="margin-right: 300px;">
+                        <div class="signature-block" style="margin-right: 200px;">
                             <p>{{ $tanggalLunas ?? '-' }}</p>
                             <p class="role">Bendahara BOSP</p>
                             <p class="name">{{ $kwitansi->penganggaran->bendahara }}</p>
