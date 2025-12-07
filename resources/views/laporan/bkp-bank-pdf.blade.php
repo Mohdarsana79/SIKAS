@@ -314,7 +314,7 @@
     </table>
 
     <div class="footer" style="font-size: {{ $printSettings['font_size'] }};">
-        <p>Pada hari ini {{ $formatAkhirBulanLengkapHari }}, Buku Kas Umum Ditutup dengan
+        <p>Pada hari ini {{ $formatAkhirBulanLengkapHari }}, Buku Kas Bank Ditutup dengan
             keadaan/posisi buku sebagai berikut :</p>
 
         <p><strong>Saldo Bank : Rp. {{ number_format($saldo, 0, ',', '.') }}</strong></p>
@@ -333,7 +333,7 @@
                 </td>
                 <td style="width: 50%; font-size: {{$printSettings['font_size']}};">
                     <div class="signature" style="font-size: {{ $printSettings['font_size'] }};">
-                        <p>{{ $sekolah->kabupaten_kota ?? 'Tolitoli' }}, {{ $formatTanggalAkhirBulanLengkap }}</p>
+                        <p>{{ $sekolah->kecamatan ?? '.........' }}, {{ $formatTanggalAkhirBulanLengkap }}</p>
                         <p>Bendahara,</p>
                         <div class="signature-line" style="font-size: {{ $printSettings['font_size'] }};">
                             <strong>{{ $penganggaran->bendahara ?? '-' }}</strong><br>

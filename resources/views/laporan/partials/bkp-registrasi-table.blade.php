@@ -111,7 +111,7 @@
             <tr>
                 <td colspan="2" class="text-center">
                     <br><br>
-                    <strong>Tanggal, {{ $tanggalPenutupan }}</strong><br>
+                    <strong>{{ $sekolah->kecamatan }}, {{ $tanggalPenutupan }}</strong><br>
                     <strong>Yang diperiksa,</strong><br>
                     <br><br><br>
                     <strong>{{ $namaBendahara }}</strong><br>

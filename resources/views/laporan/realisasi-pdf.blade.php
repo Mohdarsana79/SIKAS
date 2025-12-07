@@ -113,7 +113,47 @@
         th {
             background-color: #f8f9fa;
             font-weight: bold;
-            font-size: 7.5pt;
+            font-size: {{ $printSettings['font_size'] ?? '9pt' }};
+        }
+
+        /* SUMMARY TABLE STYLES */
+        .summary-table {
+            border: none !important;
+            border-collapse: collapse !important;
+            width: auto;
+            margin: 10px 0 20px 0;
+        }
+
+        .summary-table td {
+            border: none !important;
+            text-align: left !important;
+            padding: 4px 8px !important;
+            vertical-align: top;
+            font-size: {{ $printSettings['font_size'] ?? '9pt' }};
+        }
+
+        .summary-table tr {
+            border: none !important;
+        }
+
+        .summary-table tbody {
+            border: none !important;
+        }
+
+        .summary-table td:first-child {
+            font-weight: normal;
+            width: 55%;
+        }
+
+        .summary-table td:nth-child(2) {
+            width: 2%;
+            padding: 4px 2px !important;
+        }
+
+        .summary-table td:nth-child(3) {
+            font-weight: bold;
+            width: 43%;
+            text-align: right !important;
         }
 
         /* Header Specific Styles */
@@ -246,7 +286,7 @@
         <div class="header">
             <h1>REKAPITULASI REALISASI PENGGUNAAN DANA BOSP</h1>
             <p class="periode">PERIODE TANGGAL: {{ $periode_info['periode_awal'] ?? '01 Januari 2025' }} s/d {{
-                $periode_info['periode_akhir'] ?? '31 Desember 2025' }}
+                $periode_info['periode_akhir'] ?? '-' }}
                 @if(($periode_info['tahap'] ?? 'Tahunan') !== 'Tahunan')
                 <br>TAHAP {{ $periode_info['tahap'] ?? '1' }}
                 @endif
@@ -257,32 +297,32 @@
                     <tr>
                         <td>NPSN</td>
                         <td width="2%">:</td>
-                        <td>{{ $sekolah->npsn ?? '40202255' }}</td>
+                        <td>{{ $sekolah->npsn ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td>Nama Sekolah</td>
                         <td>:</td>
-                        <td>{{ strtoupper($sekolah->nama_sekolah ?? 'SMP MUHAMMADIYAH SONI') }}</td>
+                        <td>{{ strtoupper($sekolah->nama_sekolah ?? '-') }}</td>
                     </tr>
                     <tr>
                         <td>Kecamatan</td>
                         <td>:</td>
-                        <td>{{ $sekolah->kecamatan ?? 'Kec. Dampal Selatan' }}</td>
+                        <td>{{ $sekolah->kecamatan ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td>Kabupaten/Kota</td>
                         <td>:</td>
-                        <td>{{ $sekolah->kabupaten_kota ?? 'Kab. Tolitoli' }}</td>
+                        <td>{{ $sekolah->kabupaten_kota ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td>Provinsi</td>
                         <td>:</td>
-                        <td>{{ $sekolah->provinsi ?? 'Prov. Sulawesi Tengah' }}</td>
+                        <td>{{ $sekolah->provinsi ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td>Sumber Dana</td>
                         <td>:</td>
-                        <td>{{ $sekolah->sumber_dana ?? 'BOS Reguler' }}</td>
+                        <td>BOSP Reguler</td>
                     </tr>
                 </table>
             </div>
@@ -290,8 +330,8 @@
 
         <!-- TABEL UTAMA REALISASI DANA -->
         <div class="table-container">
-            <table class="table-realisasi">
-                <thead>
+            <table class="table-realisasi" style="font-size: {{ $printSettings['font_size'] ?? '9pt' }};">
+                <thead style="font-size: {{ $printSettings['font_size'] ?? '9pt' }};">
                     <tr class="table-header-complex">
                         <th rowspan="3" class="col-no text-center" style="width: 3%;">No<br>Urut</th>
                         <th rowspan="3" class="col-program text-center" style="width: 15%;">8 STANDAR</th>
@@ -385,34 +425,36 @@
         <!-- BAGIAN SALDO (Ringkasan Keuangan) -->
         <div>
             <table class="summary-table" style="border:none; border-collapse:collapse; !important;">
-                <tr>
-                    <td>Saldo periode sebelumnya</td>
-                    <td width="2%">:</td>
-                    <td>Rp. {{
-                        number_format($realisasiData['ringkasan_keuangan']['saldo_periode_sebelumnya'] ?? 0, 0, ',', '.')
-                        }}</td>
-                </tr>
-                <tr>
-                    <td>Total penerimaan dana BOSP periode ini</td>
-                    <td>:</td>
-                    <td>Rp. {{
-                        number_format($realisasiData['ringkasan_keuangan']['total_penerimaan_periode_ini'] ?? 0, 0, ',',
-                        '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Total penggunaan dana BOSP periode ini</td>
-                    <td>:</td>
-                    <td>Rp. {{
-                        number_format($realisasiData['ringkasan_keuangan']['total_penggunaan_periode_ini'] ?? 0, 0, ',',
-                        '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Akhir saldo BOSP periode ini</td>
-                    <td>:</td>
-                    <td>Rp. {{
-                        number_format($realisasiData['ringkasan_keuangan']['akhir_saldo_periode_ini'] ?? 0, 0, ',', '.')
-                        }}</td>
-                </tr>
+                <tbody>
+                    <tr>
+                        <td>Saldo periode sebelumnya</td>
+                        <td width="2%">:</td>
+                        <td>Rp. {{
+                            number_format($realisasiData['ringkasan_keuangan']['saldo_periode_sebelumnya'] ?? 0, 0, ',', '.')
+                            }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total penerimaan dana BOSP periode ini</td>
+                        <td>:</td>
+                        <td>Rp. {{
+                            number_format($realisasiData['ringkasan_keuangan']['total_penerimaan_periode_ini'] ?? 0, 0, ',',
+                            '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total penggunaan dana BOSP periode ini</td>
+                        <td>:</td>
+                        <td>Rp. {{
+                            number_format($realisasiData['ringkasan_keuangan']['total_penggunaan_periode_ini'] ?? 0, 0, ',',
+                            '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Akhir saldo BOSP periode ini</td>
+                        <td>:</td>
+                        <td>Rp. {{
+                            number_format($realisasiData['ringkasan_keuangan']['akhir_saldo_periode_ini'] ?? 0, 0, ',', '.')
+                            }}</td>
+                    </tr>
+                </tbody>
             </table>
         </div>
 

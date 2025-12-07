@@ -14,15 +14,15 @@
                             Pada hari ini, <span class="fw-bold">{{ $namaHariAkhirBulan }}</span> tanggal
                             <span class="fw-bold">{{ $formatTanggalAkhirBulan }}</span>
                             yang bertanda tangan di bawah ini, kami Kepala Sekolah yang ditunjuk berdasarkan<br>
-                            Surat Keputusan No. <span class="fw-bold">{{ $sekolah->sk_kepala_sekolah ??
-                                '821.24/2063.03/BKD Tanggal 03 September 2013' }}</span>
+                            Surat Keputusan No. <span class="fw-bold">{{ $skKepsek ??
+                                '-' }} Tanggal {{ $tanggalSkKepsek}}</span>
                         </td>
                     </tr>
                     <tr>
                         <td width="25%">Nama</td>
                         <td width="25%">: {{ $namaKepalaSekolah }}</td>
                         <td width="25%">Jabatan</td>
-                        <td width="25%">: Kepala Sekolah {{ $sekolah->nama_sekolah ?? 'SMP MUHAMMADIYAH SONI' }}</td>
+                        <td width="25%">: Kepala Sekolah {{ $sekolah->nama_sekolah ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td colspan="4">
@@ -37,9 +37,8 @@
                     </tr>
                     <tr>
                         <td colspan="4">
-                            Yang berdasarkan Surat Keputusan Nomor :<br>
-                            <span class="fw-bold">{{ $penganggaran->sk_bendahara ?? '045.2/001/SMP.MUH/DISDIKBUD/2025
-                                Tanggal 04 Januari 2023' }}</span> ditugaskan
+                            Yang berdasarkan Surat Keputusan Nomor :
+                            <span class="fw-bold">{{ $skBendahara ?? '-' }} Tanggal {{ $tanggalSkBendahara }}</span> ditugaskan
                             dengan pengurusan uang Bantuan Operasional Sekolah (BOS).
                         </td>
                     </tr>
@@ -112,15 +111,5 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- DEBUG: Tambahkan section debug untuk melihat data aktual -->
-        {{-- <div class="mt-3 p-3 bg-light rounded" style="font-size: 8pt;">
-            <strong>DEBUG INFO:</strong><br>
-            totalUangKertasLogam: {{ number_format($totalUangKertasLogam, 0, ',', '.') }}<br>
-            saldoBank: {{ number_format($saldoBank, 0, ',', '.') }}<br>
-            totalKas: {{ number_format($totalKas, 0, ',', '.') }}<br>
-            saldoBuku: {{ number_format($saldoBuku, 0, ',', '.') }}<br>
-            perbedaan: {{ number_format($perbedaan, 0, ',', '.') }}
-        </div> --}}
     </div>
 </div>

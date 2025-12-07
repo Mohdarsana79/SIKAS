@@ -94,7 +94,7 @@
                         Pada hari ini, <span>{{ $namaHariAkhirBulan }}</span> tanggal
                         <span>{{ $formatTanggalAkhirBulan }}</span>
                         yang bertanda tangan di bawah ini, kami Kepala Sekolah yang ditunjuk berdasarkan 
-                        Surat Keputusan No. <span>{{ $penganggaran->sk_kepala_sekolah ?? '-' }} Tanggal {{ $penganggaran->formatTanggalSkKepsek ?? '-' }}</span>
+                        Surat Keputusan No. <span>{{ $skKepsek ?? '-' }} Tanggal {{ $tanggalSkKepsek ?? '-' }}</span>
                     </td>
                 </tr>
                 <tr>
@@ -125,7 +125,7 @@
                 <tr>
                     <td colspan="5">
                         Yang berdasarkan Surat Keputusan Nomor :
-                        <span>{{ $penganggaran->sk_bendahara ?? '-' }} Tanggal {{ $penganggaran->formatTanggalSkBendahara ?? '-' }}</span> ditugaskan
+                        <span>{{ $skBendahara ?? '-' }} Tanggal {{ $tanggalSkBendahara ?? '-' }}</span> ditugaskan
                         dengan pengurusan uang Bantuan Operasional Sekolah (BOS).
                     </td>
                 </tr>

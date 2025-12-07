@@ -267,24 +267,17 @@
                     <div class="tab-pane fade" id="Rob" role="tabpanel">
                         <div class="p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <div>
-                                        <select name="bulan" id="bulanSelectRob" class="form-select form-select-sm"
-                                            style="width: 150px;">
-                                            @foreach($months as $month)
-                                            <option value="{{ $month }}" {{ $bulan==$month ? 'selected' : '' }}>{{
-                                            $month }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                                            data-bs-target="#pengaturanKertasModalRob" style="font-size: 9pt;">
-                                            <i class="bi bi-printer me-2"></i>
-                                            Cetak Rob
-                                        </button>
-                                    </div>
-                                </div>
+                                <select name="bulan" id="bulanSelectRob" class="form-select form-select-sm" style="width: 150px;">
+                                    @foreach($months as $month)
+                                    <option value="{{ $month }}" {{ $bulan==$month ? 'selected' : '' }}>{{
+                                        $month }}</option>
+                                    @endforeach
+                                </select>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pengaturanKertasModalRob"
+                                    style="font-size: 9pt;">
+                                    <i class="bi bi-printer me-2"></i>
+                                    Cetak Rob
+                                </button>
                             </div>
 
                             <!-- Loading Indicator -->

@@ -277,7 +277,7 @@
                     NIP: {{ $penganggaran->nip_kepala_sekolah ?? '_____________________' }}
                 </td>
                 <td>
-                    {{ $sekolah->kecamatan ?? '-' }}, {{ $formatAkhirBulanLengkapHari ?? '_____________________'
+                    {{ $sekolah->kecamatan ?? '-' }}, {{ $formatTanggalAkhirBulanLengkap ?? '_____________________'
                     }}<br>
                     Bendahara<br>
                     <br>

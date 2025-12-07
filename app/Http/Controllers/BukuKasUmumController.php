@@ -2907,12 +2907,12 @@ class BukuKasUmumController extends Controller
                 'saldoAkhirBuku' => $saldoAkhirBuku,
                 'perbedaan' => $saldoBuku - $saldoKas,
                 'penjelasanPerbedaan' => 'Masih ada sebagian dana BOS yang belum diambil di rekening bank. Masih ada sisa tunai yang disimpan bendahara.',
-                'tanggalPenutupan' => Carbon::create($tahun, $bulanAngka, 1)->endOfMonth()->format('d F Y'),
+                'tanggalPenutupan' => BukuKasUmum::formatTanggalAkhirBulanLengkap($tahun, $bulan),
                 'tanggalPenutupanLalu' => '-',
-                'namaBendahara' => $sekolah->bendahara ?? 'Dra. MASITAH ABDULLAH',
-                'namaKepalaSekolah' => $sekolah->kepala_sekolah ?? 'Dra. MASITAH ABDULLAH',
-                'nipBendahara' => $sekolah->nip_bendahara ?? '19690917 200701 2 017',
-                'nipKepalaSekolah' => $sekolah->nip_kepala_sekolah ?? '19690917 200701 2 017',
+                'namaBendahara' => $penganggaran->bendahara ?? '-',
+                'namaKepalaSekolah' => $penganggaran->kepala_sekolah ?? '-',
+                'nipBendahara' => $penganggaran->nip_bendahara ?? '-',
+                'nipKepalaSekolah' => $penganggaran->nip_kepala_sekolah ?? '-',
             ];
 
             return view('laporan.partials.bkp-registrasi-table', $data)->render();

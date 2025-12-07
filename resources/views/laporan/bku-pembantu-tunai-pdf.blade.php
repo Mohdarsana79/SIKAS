@@ -363,7 +363,7 @@
             </td>
             <td style="font-size: {{$printSettings['font_size']}}; border: none;">
                 <div class="ttd-box" style="font-size: {{$printSettings['font_size']}};">
-                    <p>{{ $sekolah->kabupaten_kota ?? '..........' }}, {{ $formatTanggalAkhirBulanLengkap }}</p>
+                    <p>{{ $sekolah->kecamatan ?? '..........' }}, {{ $formatTanggalAkhirBulanLengkap }}</p>
                     <p>Bendahara,</p>
                     <div class="ttd-space"></div>
                     <p><strong>{{ $penganggaran->bendahara ?? '..........' }}</strong></p>

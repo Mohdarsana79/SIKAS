@@ -269,7 +269,7 @@
                     NIP. {{ $penganggaran->nip_kepala_sekolah ?? '-' }}
                 </td>
                 <td style="width: 50%; font-size: {{$printSettings['font_size']}};">
-                    {{ $sekolah->kabupaten_kota }}, {{$formatAkhirBulanSingkat}}<br>
+                    {{ $sekolah->kecamatan }}, {{$formatAkhirBulanSingkat}}<br>
                     Bendahara
                     <div class="ttd-space"></div>
                     <strong>{{ $penganggaran->bendahara ?? '-' }}</strong><br>

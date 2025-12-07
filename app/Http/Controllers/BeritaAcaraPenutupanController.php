@@ -205,6 +205,10 @@ class BeritaAcaraPenutupanController extends Controller
                 'namaKepalaSekolah' => $penganggaran->kepala_sekolah ?? '-',
                 'nipBendahara' => $penganggaran->nip_bendahara ?? '-',
                 'nipKepalaSekolah' => $penganggaran->nip_kepala_sekolah ?? '-',
+                'skKepsek' => $penganggaran->sk_kepala_sekolah ?? '-',
+                'tanggalSkKepsek' => $penganggaran->format_tanggal_sk_kepsek ?? '-',
+                'skBendahara' => $penganggaran->sk_bendahara ?? '-',
+                'tanggalSkBendahara' => $penganggaran->format_tanggal_sk_bendahara ?? '-'
             ];
         } catch (\Exception $e) {
             Log::error('Error getDataForBeritaAcara: ' . $e->getMessage());

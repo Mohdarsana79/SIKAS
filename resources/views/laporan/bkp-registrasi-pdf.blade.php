@@ -130,7 +130,7 @@
             <!-- Informasi Header -->
             <tr>
                 <td width="30%" style="border: none;">Tanggal Penutupan Kas</td>
-                <td width="70%" colspan="6" style="border: none;"><strong>: {{ $tanggalPenutupan }}</strong></td>
+                <td width="70%" colspan="6" style="border: none;"><strong>: {{ $formatTanggalAkhirBulanLengkap }}</strong></td>
             </tr>
             <tr>
                 <td style="border: none;">Nama Penutup Kas (Pemegang Kas)</td>
@@ -261,11 +261,11 @@
                 </td>
                 <td colspan="3" style="border: none;"></td>
                 <td colspan="3" class="text-center" style="height: 100px; border: none;">
-                    <strong><strong>Tanggal, {{ $tanggalPenutupan }}</strong><br>
+                    <strong><strong>{{ $sekolah->kecamatan }}, {{ $formatTanggalAkhirBulanLengkap }}</strong><br>
                     <strong>Yang Memeriksa,</strong><br>
                     <br><br><br><br><br>
                     <strong>{{ $namaKepalaSekolah }}</strong><br>
-                    <span>NIP. {{ $nipKepalaSekolah }}</span>
+                    NIP. {{ $nipKepalaSekolah }}
                 </td>
             </tr>
         </tbody>
