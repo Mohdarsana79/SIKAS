@@ -3,25 +3,90 @@
 @include('layouts.navbar')
 @section('content')
 <style>
+    /* AJAX Pagination Styles */
+    #kegiatanTableContainer {
+        transition: opacity 0.3s ease;
+    }
 
-    .animate__animated {
-    animation-duration: 0.5s;
-}
+    .pagination-container {
+        transition: all 0.3s ease;
+    }
 
-.border-dashed {
-    border: 2px dashed #dee2e6 !important;
-    transition: all 0.3s ease;
-}
+    .page-link {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 0.375rem !important;
+        margin: 0 2px;
+        border: 1px solid #dee2e6;
+    }
 
-.border-dashed:hover {
-    border-color: #667eea !important;
-    background-color: rgba(102, 126, 234, 0.05) !important;
-}
+    .page-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background-color: #f8f9fa;
+        border-color: #667eea;
+    }
 
-.bg-primary.bg-opacity-10 {
-    border-color: #667eea !important;
-    background-color: rgba(102, 126, 234, 0.1) !important;
-}
+    .page-item.active .page-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+    }
+
+    .page-item.disabled .page-link {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-border.text-primary {
+        animation: spinner-border 0.75s linear infinite;
+    }
+
+    @keyframes spinner-border {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Loading Animation */
+    .table-loading {
+        position: relative;
+        min-height: 200px;
+    }
+
+    .table-loading::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .table-loading::after {
+        content: 'Memuat data...';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 11;
+        background: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+        color: #667eea;
+    }
+
+    /* Smooth Scrolling */
+    html {
+        scroll-behavior: smooth;
+    }
+
     /* Modal Header Gradient */
     .modal-header.bg-gradient-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -48,96 +113,105 @@
     }
 
     /* File Upload Enhancement */
-.file-upload-area {
-    transition: all 0.3s ease;
-}
-
-.file-upload-area:hover {
-    transform: translateY(-2px);
-}
-
-.upload-preview {
-    animation: slideInUp 0.5s ease;
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    .file-upload-area {
+        transition: all 0.3s ease;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    .file-upload-area:hover {
+        transform: translateY(-2px);
     }
-}
 
-.file-info-summary {
-    animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
+    .upload-preview {
+        animation: slideInUp 0.5s ease;
     }
-    to {
-        opacity: 1;
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-}
 
-/* File Status Alert */
-.file-status {
-    border-left: 4px solid #198754 !important;
-    background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
-}
-
-/* File Actions */
-.file-actions .btn {
-    border-radius: 0.375rem;
-    transition: all 0.3s ease;
-}
-
-.file-actions .btn:hover {
-    transform: scale(1.05);
-}
-
-/* Info Summary Cards */
-.file-info-summary .col-md-4 > div {
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
-}
-
-.file-info-summary .col-md-4 > div:hover {
-    transform: translateY(-2px);
-    border-color: #e9ecef;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Drag and Drop States */
-.border-dashed.drag-over {
-    border-color: #667eea !important;
-    background-color: rgba(102, 126, 234, 0.1) !important;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .upload-preview .d-flex {
-        flex-direction: column;
-        text-align: center;
+    .file-info-summary {
+        animation: fadeIn 0.5s ease;
     }
-    
-    .upload-preview .file-actions {
-        margin-top: 1rem;
-        justify-content: center;
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
     }
-    
-    .file-info-summary .row {
-        flex-direction: column;
+
+    /* File Status Alert */
+    .file-status {
+        border-left: 4px solid #198754 !important;
+        background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
     }
-    
-    .file-info-summary .col-md-4 {
-        margin-bottom: 0.5rem;
+
+    /* File Actions */
+    .file-actions .btn {
+        border-radius: 0.375rem;
+        transition: all 0.3s ease;
     }
-}
+
+    .file-actions .btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* Info Summary Cards */
+    .file-info-summary .col-md-4 > div {
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .file-info-summary .col-md-4 > div:hover {
+        transform: translateY(-2px);
+        border-color: #e9ecef;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* Drag and Drop States */
+    .border-dashed.drag-over {
+        border-color: #667eea !important;
+        background-color: rgba(102, 126, 234, 0.1) !important;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .upload-preview .d-flex {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .upload-preview .file-actions {
+            margin-top: 1rem;
+            justify-content: center;
+        }
+        
+        .file-info-summary .row {
+            flex-direction: column;
+        }
+        
+        .file-info-summary .col-md-4 {
+            margin-bottom: 0.5rem;
+        }
+
+        .pagination-container .pagination {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .pagination-container .page-item {
+            margin-bottom: 5px;
+        }
+    }
 
     .border-dashed {
         border-style: dashed !important;
@@ -287,7 +361,7 @@
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- Table Container -->
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
@@ -303,37 +377,14 @@
                             </tr>
                         </thead>
                         <tbody id="kegiatanTableBody">
-                            @foreach ($kodeKegiatans as $key => $kegiatan)
-                            <tr>
-                                <td>{{ $key + 1 }}</td>
-                                <td>{{ $kegiatan->kode }}</td>
-                                <td>{{ $kegiatan->program }}</td>
-                                <td>{{ $kegiatan->sub_program }}</td>
-                                <td>{{ $kegiatan->uraian }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ $kegiatan->id }}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger btn-delete" data-id="{{ $kegiatan->id }}" data-kode="{{ $kegiatan->kode }}"
-                                        data-program="{{ $kegiatan->program }}" data-sub-program="{{ $kegiatan->sub_program }}"
-                                        data-uraian="{{ $kegiatan->uraian }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            @endforeach
+                            <!-- Rows akan diisi via AJAX -->
                         </tbody>
                     </table>
-                    <div class="d-flex justify-content-between align-items-center mt-4">
-                        <div class="text-muted small">
-                            Menampilkan <span class="fw-semibold">{{ $kodeKegiatans->firstItem() }}</span> sampai
-                            <span class="fw-semibold">{{ $kodeKegiatans->lastItem() }}</span> dari
-                            <span class="fw-semibold">{{ $kodeKegiatans->total() }}</span> data
-                        </div>
-                        <div class="pagination-container">
-                            {{ $kodeKegiatans->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
-                        </div>
-                    </div>
+                </div>
+        
+                <!-- Pagination Container -->
+                <div id="paginationContainer">
+                    <!-- Pagination akan diisi via AJAX -->
                 </div>
             </div>
         </div>
@@ -444,10 +495,8 @@
     </div>
 </div>
 
-<!-- Edit Modals -->
-@foreach ($kodeKegiatans as $kegiatan)
-<div class="modal fade" id="editModal{{ $kegiatan->id }}" tabindex="-1"
-    aria-labelledby="editModalLabel{{ $kegiatan->id }}" aria-hidden="true">
+<!-- Modal Edit -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-gradient-warning text-dark">
@@ -456,86 +505,65 @@
                         <i class="bi bi-pencil-square text-dark fs-5"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title mb-0" id="editModalLabel{{ $kegiatan->id }}">Edit Program Kegiatan</h5>
+                        <h5 class="modal-title mb-0" id="editModalLabel">Edit Program Kegiatan</h5>
                         <p class="mb-0 small opacity-75">Perbarui data program kegiatan</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route('referensi.kode-kegiatan.update', $kegiatan->id) }}" method="POST" class="edit-form">
+            <form id="editForm" method="POST">
                 @csrf
                 @method('PUT')
+                <input type="hidden" id="editKegiatanId" name="id">
                 <div class="modal-body p-4">
                     <div class="alert alert-info d-flex align-items-center">
                         <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                        <div class="small">Anda sedang mengedit data dengan kode: <strong>{{ $kegiatan->kode }}</strong>
+                        <div class="small">Anda sedang mengedit data dengan kode: <strong id="editKodeInfo"></strong>
                         </div>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="form-floating">
-                                <input type="text" class="form-control @error('kode') is-invalid @enderror"
-                                    id="kode_edit{{ $kegiatan->id }}" name="kode"
-                                    value="{{ old('kode', $kegiatan->kode) }}" placeholder="Kode Kegiatan" required>
-                                <label for="kode_edit{{ $kegiatan->id }}" class="form-label">
+                                <input type="text" class="form-control" id="editKode" name="kode"
+                                    placeholder="Kode Kegiatan" required>
+                                <label for="editKode" class="form-label">
                                     <i class="bi bi-hash me-2 text-primary"></i>Kode Kegiatan
                                 </label>
-                                @error('kode')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="kodeError"></div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="form-floating">
-                                <input type="text" class="form-control @error('program') is-invalid @enderror"
-                                    id="program_edit{{ $kegiatan->id }}" name="program"
-                                    value="{{ old('program', $kegiatan->program) }}" placeholder="Nama Program"
-                                    required>
-                                <label for="program_edit{{ $kegiatan->id }}" class="form-label">
+                                <input type="text" class="form-control" id="editProgram" name="program"
+                                    placeholder="Nama Program" required>
+                                <label for="editProgram" class="form-label">
                                     <i class="bi bi-journal-text me-2 text-success"></i>Nama Program
                                 </label>
-                                @error('program')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="programError"></div>
                             </div>
                         </div>
 
                         <div class="col-12">
                             <div class="form-floating">
-                                <textarea class="form-control @error('sub_program') is-invalid @enderror"
-                                    id="sub_program_edit{{ $kegiatan->id }}" name="sub_program"
-                                    placeholder="Sub Program" style="height: 100px"
-                                    required>{{ old('sub_program', $kegiatan->sub_program) }}</textarea>
-                                <label for="sub_program_edit{{ $kegiatan->id }}" class="form-label">
+                                <textarea class="form-control" id="editSubProgram" name="sub_program"
+                                    placeholder="Sub Program" style="height: 100px" required></textarea>
+                                <label for="editSubProgram" class="form-label">
                                     <i class="bi bi-list-check me-2 text-warning"></i>Sub Program
                                 </label>
-                                @error('sub_program')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="subProgramError"></div>
                             </div>
                         </div>
 
                         <div class="col-12">
                             <div class="form-floating">
-                                <textarea class="form-control @error('uraian') is-invalid @enderror"
-                                    id="uraian_edit{{ $kegiatan->id }}" name="uraian" placeholder="Uraian Kegiatan"
-                                    style="height: 120px" required>{{ old('uraian', $kegiatan->uraian) }}</textarea>
-                                <label for="uraian_edit{{ $kegiatan->id }}" class="form-label">
+                                <textarea class="form-control" id="editUraian" name="uraian"
+                                    placeholder="Uraian Kegiatan" style="height: 120px" required></textarea>
+                                <label for="editUraian" class="form-label">
                                     <i class="bi bi-card-text me-2 text-info"></i>Uraian Kegiatan
                                 </label>
-                                @error('uraian')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="uraianError"></div>
                             </div>
                         </div>
                     </div>
@@ -544,7 +572,7 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-2"></i>Batal
                     </button>
-                    <button type="submit" class="btn btn-warning text-white">
+                    <button type="submit" class="btn btn-warning text-white" id="btnUpdate">
                         <i class="bi bi-check-circle me-2"></i>Update Data
                     </button>
                 </div>
@@ -552,7 +580,6 @@
         </div>
     </div>
 </div>
-@endforeach
 
 <!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">

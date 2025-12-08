@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\KodeKegiatan;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Validator;
 use App\Imports\KodeKegiatanImport;
+use App\Models\KodeKegiatan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class KodeKegiatanController extends Controller
 {
@@ -20,19 +20,71 @@ class KodeKegiatanController extends Controller
      */
     public function index(Request $request)
     {
-        $search = request()->input('search');
+        $search = $request->input('search', '');
 
         $kodeKegiatans = KodeKegiatan::when($search, function ($query) use ($search) {
-            return $query->where('kode', 'like', '%' . $search . '%')
-                ->orWhere('program', 'like', '%' . $search . '%')
-                ->orWhere('sub_program', 'like', '%' . $search . '%')
-                ->orWhere('uraian', 'like', '%' . $search . '%');
+            return $query->where('kode', 'like', '%'.$search.'%')
+                ->orWhere('program', 'like', '%'.$search.'%')
+                ->orWhere('sub_program', 'like', '%'.$search.'%')
+                ->orWhere('uraian', 'like', '%'.$search.'%');
         })
             ->orderBy('kode')
             ->paginate(10)
             ->onEachSide(1);
 
+        // Jika request AJAX, kembalikan JSON
+        if ($request->ajax()) {
+            $view = view('referensi.partials.kode-kegiatan-table', compact('kodeKegiatans'))->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $view,
+                'pagination' => (string) $kodeKegiatans->links('vendor.pagination.bootstrap-5'),
+            ]);
+        }
+
         return view('referensi.kode-kegiatan', compact('kodeKegiatans', 'search'));
+    }
+
+    public function paginate(Request $request): JsonResponse
+    {
+        try {
+            $search = $request->input('search', '');
+            $page = $request->input('page', 1);
+
+            $kodeKegiatans = KodeKegiatan::when($search, function ($query) use ($search) {
+                return $query->where('kode', 'like', '%' . $search . '%')
+                    ->orWhere('program', 'like', '%' . $search . '%')
+                    ->orWhere('sub_program', 'like', '%' . $search . '%')
+                    ->orWhere('uraian', 'like', '%' . $search . '%');
+            })
+                ->orderBy('kode')
+                ->paginate(10, ['*'], 'page', $page)
+                ->onEachSide(1);
+
+            // Hanya render tabel tanpa modal edit
+            $tableHtml = view('referensi.partials.kode-kegiatan-table-rows', compact('kodeKegiatans'))->render();
+
+            // Info pagination tanpa modal
+            $paginationHtml = view('referensi.partials.pagination-info', compact('kodeKegiatans'))->render();
+
+            return response()->json([
+                'success' => true,
+                'table_html' => $tableHtml,
+                'pagination_html' => $paginationHtml,
+                'current_page' => $kodeKegiatans->currentPage(),
+                'last_page' => $kodeKegiatans->lastPage(),
+                'total' => $kodeKegiatans->total()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in pagination: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function search(Request $request): JsonResponse
@@ -43,7 +95,7 @@ class KodeKegiatanController extends Controller
             if (empty($searchTerm)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Kata pencarian tidak boleh kosong'
+                    'message' => 'Kata pencarian tidak boleh kosong',
                 ], 400);
             }
 
@@ -64,7 +116,7 @@ class KodeKegiatanController extends Controller
                     'program' => $kegiatan->program,
                     'sub_program' => $kegiatan->sub_program,
                     'uraian' => $kegiatan->uraian,
-                    'actions' => $this->getKegiatanActionButtons($kegiatan)
+                    'actions' => $this->getKegiatanActionButtons($kegiatan),
                 ];
             });
 
@@ -72,14 +124,14 @@ class KodeKegiatanController extends Controller
                 'success' => true,
                 'data' => $formattedData,
                 'total' => $kegiatans->count(),
-                'search_term' => $searchTerm
+                'search_term' => $searchTerm,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error searching kode kegiatan: ' . $e->getMessage());
+            Log::error('Error searching kode kegiatan: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mencari data: ' . $e->getMessage()
+                'message' => 'Terjadi kesalahan saat mencari data: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -91,12 +143,15 @@ class KodeKegiatanController extends Controller
     {
         return '
         <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                data-bs-target="#editModal' . $kegiatan->id . '">
-            <i class="bi bi-pencil"></i>
-        </button>
-        <button class="btn btn-sm btn-danger btn-delete" data-id="' . $kegiatan->id . '" 
+                data-bs-target="#editModal' . $kegiatan->id . '"
+                data-id="'.$kegiatan->id. '"
                 data-kode="' . $kegiatan->kode . '" data-program="' . $kegiatan->program . '"
                 data-sub-program="' . $kegiatan->sub_program . '" data-uraian="' . $kegiatan->uraian . '">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-danger btn-delete" data-id="'.$kegiatan->id.'" 
+                data-kode="'.$kegiatan->kode.'" data-program="'.$kegiatan->program.'"
+                data-sub-program="'.$kegiatan->sub_program.'" data-uraian="'.$kegiatan->uraian.'">
             <i class="bi bi-trash"></i>
         </button>
     ';
@@ -119,7 +174,7 @@ class KodeKegiatanController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Validasi gagal',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -134,24 +189,24 @@ class KodeKegiatanController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Data berhasil ditambahkan'
+                    'message' => 'Data berhasil ditambahkan',
                 ]);
             }
 
             return redirect()->route('referensi.kode-kegiatan.index')
                 ->with('success', 'Data berhasil ditambahkan');
         } catch (\Exception $e) {
-            Log::error('Error creating kode kegiatan: ' . $e->getMessage());
+            Log::error('Error creating kode kegiatan: '.$e->getMessage());
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal menambahkan data: ' . $e->getMessage()
+                    'message' => 'Gagal menambahkan data: '.$e->getMessage(),
                 ], 500);
             }
 
             return redirect()->back()
-                ->with('error', 'Gagal menambahkan data: ' . $e->getMessage())
+                ->with('error', 'Gagal menambahkan data: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -172,7 +227,7 @@ class KodeKegiatanController extends Controller
             ],
             'program' => 'required|string|max:255',
             'sub_program' => 'required|string',
-            'uraian' => 'required|string'
+            'uraian' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -180,7 +235,7 @@ class KodeKegiatanController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Validasi gagal',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -195,24 +250,24 @@ class KodeKegiatanController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Data berhasil diperbarui'
+                    'message' => 'Data berhasil diperbarui',
                 ]);
             }
 
             return redirect()->route('referensi.kode-kegiatan.index')
                 ->with('success', 'Data berhasil diperbarui');
         } catch (\Exception $e) {
-            Log::error('Error updating kode kegiatan: ' . $e->getMessage());
+            Log::error('Error updating kode kegiatan: '.$e->getMessage());
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal memperbarui data: ' . $e->getMessage()
+                    'message' => 'Gagal memperbarui data: '.$e->getMessage(),
                 ], 500);
             }
 
             return redirect()->back()
-                ->with('error', 'Gagal memperbarui data: ' . $e->getMessage())
+                ->with('error', 'Gagal memperbarui data: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -229,18 +284,18 @@ class KodeKegiatanController extends Controller
             if (request()->ajax() || request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Data berhasil dihapus'
+                    'message' => 'Data berhasil dihapus',
                 ]);
             }
 
             return redirect()->route('referensi.kode-kegiatan.index')->with('success', 'Data Berhasil dihapus');
         } catch (\Exception $e) {
-            Log::error('Error deleting kode kegiatan: ' . $e->getMessage());
+            Log::error('Error deleting kode kegiatan: '.$e->getMessage());
 
             if (request()->ajax() || request()->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal menghapus data: ' . $e->getMessage()
+                    'message' => 'Gagal menghapus data: '.$e->getMessage(),
                 ], 500);
             }
 
@@ -254,7 +309,7 @@ class KodeKegiatanController extends Controller
     public function import(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls,csv|max:2048'
+            'file' => 'required|mimes:xlsx,xls,csv|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -262,16 +317,16 @@ class KodeKegiatanController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Validasi file gagal',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             return redirect()->back()
-                ->with('error', 'File tidak valid: ' . implode(', ', $validator->errors()->all()));
+                ->with('error', 'File tidak valid: '.implode(', ', $validator->errors()->all()));
         }
 
         try {
-            $import = new KodeKegiatanImport();
+            $import = new KodeKegiatanImport;
             Excel::import($import, $request->file('file'));
 
             $successCount = $import->getRowCount();
@@ -285,7 +340,7 @@ class KodeKegiatanController extends Controller
                     'imported_count' => $successCount,
                     'duplicate_count' => $duplicateCount,
                     'error_count' => $errorCount,
-                    'message' => "Berhasil mengimport {$successCount} data"
+                    'message' => "Berhasil mengimport {$successCount} data",
                 ]);
             }
 
@@ -308,7 +363,7 @@ class KodeKegiatanController extends Controller
                 $errorMessages = [];
                 /** @var \Maatwebsite\Excel\Validators\Failure $failure */
                 foreach ($import->failures() as $failure) {
-                    $errorMessages[] = "Baris {$failure->row()}: " . implode(', ', $failure->errors());
+                    $errorMessages[] = "Baris {$failure->row()}: ".implode(', ', $failure->errors());
                 }
                 $messages['import_errors'] = $errorMessages;
                 $messages['error'] = "{$errorCount} data tidak valid";
@@ -317,18 +372,18 @@ class KodeKegiatanController extends Controller
             return redirect()->route('referensi.kode-kegiatan.index')
                 ->with($messages);
         } catch (\Exception $e) {
-            Log::error('Error importing kode kegiatan: ' . $e->getMessage());
+            Log::error('Error importing kode kegiatan: '.$e->getMessage());
 
             // Jika request AJAX
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                    'message' => 'Terjadi kesalahan: '.$e->getMessage(),
                 ], 500);
             }
 
             return redirect()->back()
-                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+                ->with('error', 'Terjadi kesalahan: '.$e->getMessage());
         }
     }
 

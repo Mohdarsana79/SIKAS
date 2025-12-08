@@ -3,6 +3,92 @@
 @include('layouts.navbar')
 @section('content')
 <style>
+    /* AJAX Pagination Styles */
+    #rekeningTableContainer {
+        transition: opacity 0.3s ease;
+    }
+
+    .pagination-container {
+        transition: all 0.3s ease;
+    }
+
+    .page-link {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 0.375rem !important;
+        margin: 0 2px;
+        border: 1px solid #dee2e6;
+    }
+
+    .page-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        background-color: #f8f9fa;
+        border-color: #667eea;
+    }
+
+    .page-item.active .page-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+    }
+
+    .page-item.disabled .page-link {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-border.text-primary {
+        animation: spinner-border 0.75s linear infinite;
+    }
+
+    @keyframes spinner-border {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Loading Animation */
+    .table-loading {
+        position: relative;
+        min-height: 200px;
+    }
+
+    .table-loading::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .table-loading::after {
+        content: 'Memuat data...';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 11;
+        background: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+        color: #667eea;
+    }
+
+    /* Smooth Scrolling */
+    html {
+        scroll-behavior: smooth;
+    }
+
     .animate__animated {
         animation-duration: 0.5s;
     }
@@ -141,7 +227,7 @@
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- Table Container -->
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
@@ -156,38 +242,14 @@
                             </tr>
                         </thead>
                         <tbody id="rekeningTableBody">
-                            @foreach ($rekenings as $key => $rekening)
-                            <tr>
-                                <td>{{ $key + 1 }}</td>
-                                <td>{{ $rekening->kode_rekening }}</td>
-                                <td>{{ $rekening->rincian_objek }}</td>
-                                <td>{{ $rekening->kategori }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                        data-bs-target="#editModal{{ $rekening->id }}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger btn-delete" data-id="{{ $rekening->id }}"
-                                        data-kode-rekening="{{ $rekening->kode_rekening }}"
-                                        data-rincian-objek="{{ $rekening->rincian_objek }}"
-                                        data-kategori="{{ $rekening->kategori }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            @endforeach
+                            <!-- Rows akan diisi via AJAX -->
                         </tbody>
                     </table>
-                    <div class="d-flex justify-content-between align-items-center mt-4">
-                        <div class="text-muted small">
-                            Menampilkan <span class="fw-semibold">{{ $rekenings->firstItem() }}</span> sampai
-                            <span class="fw-semibold">{{ $rekenings->lastItem() }}</span> dari
-                            <span class="fw-semibold">{{ $rekenings->total() }}</span> data
-                        </div>
-                        <div class="pagination-container">
-                            {{ $rekenings->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
-                        </div>
-                    </div>
+                </div>
+
+                <!-- Pagination Container -->
+                <div id="paginationContainer">
+                    <!-- Pagination akan diisi via AJAX -->
                 </div>
             </div>
         </div>
@@ -288,10 +350,8 @@
     </div>
 </div>
 
-<!-- Edit Modals -->
-@foreach ($rekenings as $rekening)
-<div class="modal fade" id="editModal{{ $rekening->id }}" tabindex="-1"
-    aria-labelledby="editModalLabel{{ $rekening->id }}" aria-hidden="true">
+<!-- Edit Modal (SINGLE MODAL UNTUK SEMUA EDIT) -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-gradient-warning text-dark">
@@ -300,77 +360,57 @@
                         <i class="bi bi-pencil-square text-dark fs-5"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title mb-0" id="editModalLabel{{ $rekening->id }}">Edit Rekening Belanja</h5>
+                        <h5 class="modal-title mb-0" id="editModalLabel">Edit Rekening Belanja</h5>
                         <p class="mb-0 small opacity-75">Perbarui data rekening belanja</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <!-- TAMBAHKAN CLASS edit-form DAN ID UNIK -->
-            <form action="{{ route('referensi.rekening-belanja.update', $rekening->id) }}" method="POST"
-                class="edit-form" id="editForm{{ $rekening->id }}">
+            <form id="editForm" method="POST">
                 @csrf
                 @method('PUT')
+                <input type="hidden" id="editRekeningId" name="id">
                 <div class="modal-body p-4">
                     <div class="alert alert-info d-flex align-items-center">
                         <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                        <div class="small">Anda sedang mengedit data dengan kode: <strong>{{ $rekening->kode_rekening
-                                }}</strong>
+                        <div class="small">Anda sedang mengedit data dengan kode: <strong
+                                id="editKodeRekeningInfo"></strong>
                         </div>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="form-floating">
-                                <input type="text" class="form-control @error('kode_rekening') is-invalid @enderror"
-                                    id="kode_rekening_edit{{ $rekening->id }}" name="kode_rekening"
-                                    value="{{ old('kode_rekening', $rekening->kode_rekening) }}"
+                                <input type="text" class="form-control" id="editKodeRekening" name="kode_rekening"
                                     placeholder="Kode Rekening" required maxlength="20">
-                                <label for="kode_rekening_edit{{ $rekening->id }}" class="form-label">
+                                <label for="editKodeRekening" class="form-label">
                                     <i class="bi bi-hash me-2 text-primary"></i>Kode Rekening
                                 </label>
-                                @error('kode_rekening')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="kodeRekeningError"></div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="form-floating">
-                                <select class="form-select @error('kategori') is-invalid @enderror"
-                                    id="kategori_edit{{ $rekening->id }}" name="kategori" required>
-                                    <option value="Modal" {{ old('kategori', $rekening->kategori) == 'Modal' ?
-                                        'selected' : '' }}>Modal</option>
-                                    <option value="Operasi" {{ old('kategori', $rekening->kategori) == 'Operasi' ?
-                                        'selected' : '' }}>Operasi</option>
+                                <select class="form-select" id="editKategori" name="kategori" required>
+                                    <option value="Modal">Modal</option>
+                                    <option value="Operasi">Operasi</option>
                                 </select>
-                                <label for="kategori_edit{{ $rekening->id }}" class="form-label">
+                                <label for="editKategori" class="form-label">
                                     <i class="bi bi-tags me-2 text-success"></i>Kategori Belanja
                                 </label>
-                                @error('kategori')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="kategoriError"></div>
                             </div>
                         </div>
 
                         <div class="col-12">
                             <div class="form-floating">
-                                <textarea class="form-control @error('rincian_objek') is-invalid @enderror"
-                                    id="rincian_objek_edit{{ $rekening->id }}" name="rincian_objek"
-                                    placeholder="Rincian Objek Belanja" style="height: 120px"
-                                    required>{{ old('rincian_objek', $rekening->rincian_objek) }}</textarea>
-                                <label for="rincian_objek_edit{{ $rekening->id }}" class="form-label">
+                                <textarea class="form-control" id="editRincianObjek" name="rincian_objek"
+                                    placeholder="Rincian Objek Belanja" style="height: 120px" required></textarea>
+                                <label for="editRincianObjek" class="form-label">
                                     <i class="bi bi-card-text me-2 text-info"></i>Rincian Objek Belanja
                                 </label>
-                                @error('rincian_objek')
-                                <div class="invalid-feedback d-flex align-items-center">
-                                    <i class="bi bi-exclamation-circle me-2"></i>{{ $message }}
-                                </div>
-                                @enderror
+                                <div class="invalid-feedback d-none" id="rincianObjekError"></div>
                             </div>
                         </div>
                     </div>
@@ -379,8 +419,7 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-2"></i>Batal
                     </button>
-                    <!-- TAMBAHKAN ID UNIK PADA TOMBOL SUBMIT -->
-                    <button type="submit" class="btn btn-warning text-white" id="updateBtn{{ $rekening->id }}">
+                    <button type="submit" class="btn btn-warning text-white" id="btnUpdate">
                         <i class="bi bi-check-circle me-2"></i>Update Data
                     </button>
                 </div>
@@ -388,7 +427,6 @@
         </div>
     </div>
 </div>
-@endforeach
 
 <!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">

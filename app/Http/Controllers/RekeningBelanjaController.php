@@ -18,18 +18,73 @@ class RekeningBelanjaController extends Controller
      */
     public function index(Request $request)
     {
-        //
-        $search = $request->input('search');
+        $search = $request->input('search', '');
 
         $rekenings = RekeningBelanja::when($search, function ($query) use ($search) {
             return $query->where('kode_rekening', 'like', '%' . $search . '%')
-                ->orWhere('rincian_objek', 'like', '%' . $search . '%');
+                ->orWhere('rincian_objek', 'like', '%' . $search . '%')
+                ->orWhere('kategori', 'like', '%' . $search . '%');
         })
             ->orderBy('kode_rekening')
             ->paginate(20)
             ->onEachSide(1);
 
+        // Jika request AJAX, kembalikan JSON
+        if ($request->ajax()) {
+            $view = view('referensi.partials.rekening-belanja-table', compact('rekenings'))->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $view,
+                'pagination' => (string) $rekenings->links('vendor.pagination.bootstrap-5')
+            ]);
+        }
+
         return view('referensi.rekening-belanja', compact('rekenings', 'search'));
+    }
+
+    /**
+     * Get paginated data for AJAX requests
+     */
+    public function paginate(Request $request): JsonResponse
+    {
+        try {
+            $search = $request->input('search', '');
+            $page = $request->input('page', 1);
+
+            $rekenings = RekeningBelanja::when($search, function ($query) use ($search) {
+                return $query->where('kode_rekening', 'like', '%' . $search . '%')
+                    ->orWhere('rincian_objek', 'like', '%' . $search . '%')
+                    ->orWhere('kategori', 'like', '%' . $search . '%');
+            })
+                ->orderBy('kode_rekening')
+                ->paginate(20, ['*'], 'page', $page)
+                ->onEachSide(1);
+
+            // Hanya render tabel rows tanpa modal edit
+            $tableRowsHtml = view('referensi.partials.rekening-belanja-table-rows', compact('rekenings'))->render();
+
+            // Info pagination
+            $paginationInfoHtml = view('referensi.partials.rekening-pagination-info', compact('rekenings'))->render();
+
+            return response()->json([
+                'success' => true,
+                'table_rows_html' => $tableRowsHtml,
+                'pagination_info_html' => $paginationInfoHtml,
+                'pagination_links' => (string) $rekenings->links('vendor.pagination.bootstrap-5'),
+                'current_page' => $rekenings->currentPage(),
+                'last_page' => $rekenings->lastPage(),
+                'total' => $rekenings->total()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in rekening pagination: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Pastikan method search sudah ada di controller
@@ -83,8 +138,11 @@ class RekeningBelanjaController extends Controller
     private function getRekeningActionButtons($rekening): string
     {
         return '
-            <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                    data-bs-target="#editModal' . $rekening->id . '">
+            <button class="btn btn-sm btn-warning btn-edit" 
+                    data-id="' . $rekening->id . '" 
+                    data-kode-rekening="' . $rekening->kode_rekening . '"
+                    data-rincian-objek="' . $rekening->rincian_objek . '"
+                    data-kategori="' . $rekening->kategori . '">
                 <i class="bi bi-pencil"></i>
             </button>
             <button class="btn btn-sm btn-danger btn-delete" 
@@ -110,8 +168,7 @@ class RekeningBelanjaController extends Controller
      */
     public function store(Request $request)
     {
-        //
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'kode_rekening' => 'required|string|max:20|unique:rekening_belanjas,kode_rekening',
             'rincian_objek' => 'required|string',
             'kategori' => 'required|string|in:Modal,Operasi',
@@ -123,8 +180,46 @@ class RekeningBelanjaController extends Controller
             'kategori.required' => 'Kategori belanja modal atau operasi wajib di isi'
         ]);
 
-        RekeningBelanja::create($request->all());
-        return redirect()->route('referensi.rekening-belanja.index')->with('success', 'Rekening Belanja berhasil ditambahkan');
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan!');
+        }
+
+        try {
+            RekeningBelanja::create($request->all());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Rekening Belanja berhasil ditambahkan'
+                ]);
+            }
+
+            return redirect()->route('referensi.rekening-belanja.index')->with('success', 'Rekening Belanja berhasil ditambahkan');
+        } catch (\Exception $e) {
+            Log::error('Error creating rekening belanja: ' . $e->getMessage());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menambahkan data: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Gagal menambahkan data: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
@@ -149,6 +244,7 @@ class RekeningBelanjaController extends Controller
     public function update(Request $request, $id)
     {
         $rekeningBelanja = RekeningBelanja::findOrFail($id);
+
         $validator = Validator::make($request->all(), [
             'kode_rekening' => [
                 'required',
@@ -167,14 +263,45 @@ class RekeningBelanjaController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput()
                 ->with('error', 'Terjadi kesalahan!');
         }
 
-        $rekeningBelanja->update($request->all());
-        return redirect()->route('referensi.rekening-belanja.index')->with('success', 'Rekening Belanja berhasil diperbarui');
+        try {
+            $rekeningBelanja->update($request->all());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Rekening Belanja berhasil diperbarui'
+                ]);
+            }
+
+            return redirect()->route('referensi.rekening-belanja.index')->with('success', 'Rekening Belanja berhasil diperbarui');
+        } catch (\Exception $e) {
+            Log::error('Error updating rekening belanja: ' . $e->getMessage());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal memperbarui data: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Gagal memperbarui data: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
@@ -203,9 +330,22 @@ class RekeningBelanjaController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'file' => 'required|mimes:xlsx,xls,csv|max:2048'
         ]);
+
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi file gagal',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            return redirect()->back()
+                ->with('error', 'File tidak valid: ' . implode(', ', $validator->errors()->all()));
+        }
 
         try {
             $import = new RekeningBelanjaImport();
@@ -214,6 +354,17 @@ class RekeningBelanjaController extends Controller
             $successCount = $import->getRowCount();
             $duplicateCount = count($import->getDuplicates());
             $errorCount = count($import->failures());
+
+            // Jika request AJAX
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'imported_count' => $successCount,
+                    'duplicate_count' => $duplicateCount,
+                    'error_count' => $errorCount,
+                    'message' => "Berhasil mengimport {$successCount} data"
+                ]);
+            }
 
             $messages = [];
 
@@ -243,6 +394,16 @@ class RekeningBelanjaController extends Controller
             return redirect()->route('referensi.rekening-belanja.index')
                 ->with($messages);
         } catch (\Exception $e) {
+            Log::error('Error importing rekening belanja: ' . $e->getMessage());
+
+            // Jika request AJAX
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                ], 500);
+            }
+
             return redirect()->back()
                 ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }

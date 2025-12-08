@@ -1,130 +1,406 @@
 // kode-kegiatan.js
 class KodeKegiatanManager {
     constructor() {
+        this.currentPage = 1;
+        this.searchTerm = '';
+        this.isLoading = false;
+        this.editModal = null;
         this.init();
     }
 
     init() {
         console.log('🔄 Initializing KodeKegiatanManager...');
-        this.initializeForms();
-        this.initializeDeleteButtons();
-        this.initializeSearch();
+        this.initializeEventListeners();
+        this.initializeEditModal();
         this.initializeFileUpload();
+        this.loadInitialData();
         console.log('✅ KodeKegiatanManager initialized');
     }
 
-    initializeForms() {
-        // Handle form tambah
-        const tambahForm = document.querySelector('#tambahModal form');
-        if (tambahForm) {
-            console.log('✅ Found create form');
-            this.setupForm(tambahForm, 'create');
-        }
-
-        // Handle form edit - perbaiki selector untuk form edit
-        const editForms = document.querySelectorAll('form[action*="kode-kegiatan"]');
-        editForms.forEach(form => {
-            if (form.method === 'POST' && form.querySelector('input[name="_method"][value="PUT"]')) {
-                console.log('✅ Found update form');
-                this.setupForm(form, 'update');
+    initializeEventListeners() {
+        // Event delegation untuk semua button
+        document.addEventListener('click', (e) => {
+            // Tombol edit
+            if (e.target.closest('.btn-edit')) {
+                e.preventDefault();
+                this.handleEditClick(e.target.closest('.btn-edit'));
+            }
+            
+            // Tombol delete
+            if (e.target.closest('.btn-delete')) {
+                e.preventDefault();
+                this.handleDeleteClick(e.target.closest('.btn-delete'));
+            }
+            
+            // Pagination links
+            const paginationLink = e.target.closest('.page-link');
+            if (paginationLink && !paginationLink.closest('.disabled')) {
+                e.preventDefault();
+                this.handlePaginationClick(paginationLink);
             }
         });
 
-        // Handle form import
-        const importForm = document.querySelector('#importModal form');
+        // Search input
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            let timeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    const searchTerm = e.target.value.trim();
+                    this.searchTerm = searchTerm;
+                    this.currentPage = 1;
+                    
+                    if (searchTerm.length >= 2 || searchTerm.length === 0) {
+                        this.loadTableData();
+                    }
+                }, 500);
+            });
+        }
+
+        // Form tambah
+        const tambahForm = document.getElementById('tambahForm');
+        if (tambahForm) {
+            tambahForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleTambahSubmit(e);
+            });
+        }
+
+        // Form import
+        const importForm = document.getElementById('importForm');
         if (importForm) {
-            console.log('✅ Found import form');
-            this.setupForm(importForm, 'import');
+            importForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleImportSubmit(e);
+            });
         }
     }
 
-    setupForm(form, type) {
-        // Hapus event listener lama
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
-
-        // Tambah event listener baru
-        newForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.handleFormSubmit(newForm, type);
-        });
-
-        console.log(`✅ Form ${type} setup completed`);
+    initializeEditModal() {
+        // Inisialisasi modal edit
+        const editModalElement = document.getElementById('editModal');
+        if (editModalElement) {
+            this.editModal = new bootstrap.Modal(editModalElement);
+            
+            // Reset form saat modal ditutup
+            editModalElement.addEventListener('hidden.bs.modal', () => {
+                this.resetEditForm();
+            });
+            
+            // Form submit
+            const editForm = document.getElementById('editForm');
+            if (editForm) {
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleEditSubmit(e);
+                });
+            }
+        }
     }
 
-    async handleFormSubmit(form, type) {
-        const submitButton = form.querySelector('button[type="submit"]');
+    async loadInitialData() {
+        try {
+            const response = await fetch('/referensi/kode-kegiatan/paginate', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.updateTableContent(data.table_html);
+                    this.updatePaginationContent(data.pagination_html);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Load initial data failed:', error);
+        }
+    }
+
+    async loadTableData() {
+        if (this.isLoading) return;
+        
+        try {
+            this.isLoading = true;
+            this.showTableLoading();
+            
+            const response = await fetch(`/referensi/kode-kegiatan/paginate?page=${this.currentPage}&search=${encodeURIComponent(this.searchTerm)}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.updateTableContent(data.table_html);
+                    this.updatePaginationContent(data.pagination_html);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Load table data failed:', error);
+            this.showError('Gagal memuat data');
+        } finally {
+            this.isLoading = false;
+            this.hideTableLoading();
+        }
+    }
+
+    handleEditClick(button) {
+        const id = button.getAttribute('data-id');
+        const kode = button.getAttribute('data-kode');
+        const program = button.getAttribute('data-program');
+        const subProgram = button.getAttribute('data-sub-program');
+        const uraian = button.getAttribute('data-uraian');
+
+        // Set data ke form
+        document.getElementById('editKegiatanId').value = id;
+        document.getElementById('editKode').value = kode;
+        document.getElementById('editProgram').value = program;
+        document.getElementById('editSubProgram').value = subProgram;
+        document.getElementById('editUraian').value = uraian;
+        document.getElementById('editKodeInfo').textContent = kode;
+
+        // Set form action
+        document.getElementById('editForm').action = `/referensi/kode-kegiatan/${id}`;
+
+        // Reset error messages
+        this.resetEditFormErrors();
+
+        // Show modal
+        if (this.editModal) {
+            this.editModal.show();
+        }
+    }
+
+    async handleEditSubmit(e) {
+        e.preventDefault();
+        
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitButton = form.querySelector('#btnUpdate');
         const originalText = submitButton ? submitButton.innerHTML : '';
 
         try {
-            console.log(`🚀 ${type.toUpperCase()} form submission started`);
-
-            // Show loading state
+            // Show loading
             if (submitButton) {
-                this.showLoadingState(submitButton, type);
+                this.showButtonLoading(submitButton, 'Memperbarui data...');
             }
 
-            // Validasi untuk form create dan update
-            if ((type === 'create' || type === 'update') && !this.validateForm(form)) {
+            // Validasi
+            if (!this.validateEditForm(form)) {
                 if (submitButton) {
                     this.resetButtonState(submitButton, originalText);
                 }
                 return;
             }
 
-            let response;
-            
-            if (type === 'import') {
-                // Handle import dengan FormData
-                const formData = new FormData(form);
-                response = await fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': this.getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-            } else {
-                // Handle create dan update
-                const formData = new FormData(form);
-                
-                // Untuk update, tambahkan method spoofing
-                if (type === 'update') {
-                    formData.append('_method', 'PUT');
+            // Kirim request
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': this.getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 }
+            });
 
-                response = await fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': this.getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
-                });
-            }
-
-            console.log(`📥 ${type.toUpperCase()} response status:`, response.status);
-
-            const contentType = response.headers.get('content-type');
-            let result;
-
-            if (contentType && contentType.includes('application/json')) {
-                result = await response.json();
-            } else {
-                // Jika response bukan JSON, anggap success dan reload
-                if (response.ok) {
-                    this.handleFormSuccess(type, { success: true, message: 'Operation completed successfully' }, form);
-                    return;
-                } else {
-                    throw new Error(`Server error: ${response.status}`);
-                }
-            }
+            const result = await response.json();
 
             if (response.ok && result.success) {
-                console.log(`✅ ${type.toUpperCase()} success:`, result);
-                this.handleFormSuccess(type, result, form);
+                // Tutup modal
+                if (this.editModal) {
+                    this.editModal.hide();
+                }
+
+                // Reset form
+                this.resetEditForm();
+
+                // Tampilkan success message
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: result.message || 'Data berhasil diperbarui',
+                    confirmButtonColor: '#198754',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Refresh data
+                await this.loadTableData();
+            } else {
+                // Tampilkan error validasi
+                if (result.errors) {
+                    this.showEditFormErrors(result.errors);
+                } else {
+                    throw new Error(result.message || 'Update gagal');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Edit failed:', error);
+            this.showError(error.message || 'Terjadi kesalahan saat memperbarui data');
+        } finally {
+            if (submitButton) {
+                this.resetButtonState(submitButton, originalText);
+            }
+        }
+    }
+
+    validateEditForm(form) {
+        let isValid = true;
+        
+        // Reset semua error
+        this.resetEditFormErrors();
+        
+        // Validasi field required
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                
+                const fieldName = field.name;
+                const errorElement = document.getElementById(`${fieldName}Error`);
+                if (errorElement) {
+                    errorElement.textContent = 'Field ini wajib diisi';
+                    errorElement.classList.remove('d-none');
+                }
+            }
+        });
+
+        if (!isValid) {
+            this.showError('Harap lengkapi semua field yang wajib diisi');
+        }
+
+        return isValid;
+    }
+
+    resetEditFormErrors() {
+        // Hapus kelas invalid dari semua input
+        const inputs = document.querySelectorAll('#editForm .form-control');
+        inputs.forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+
+        // Sembunyikan semua pesan error
+        const errorElements = document.querySelectorAll('#editForm .invalid-feedback');
+        errorElements.forEach(element => {
+            element.classList.add('d-none');
+        });
+    }
+
+    showEditFormErrors(errors) {
+        // Reset errors terlebih dahulu
+        this.resetEditFormErrors();
+        
+        // Tampilkan error untuk setiap field
+        for (const [field, messages] of Object.entries(errors)) {
+            const input = document.querySelector(`#editForm [name="${field}"]`);
+            const errorElement = document.getElementById(`${field}Error`);
+            
+            if (input && errorElement) {
+                input.classList.add('is-invalid');
+                errorElement.textContent = messages.join(', ');
+                errorElement.classList.remove('d-none');
+            }
+        }
+    }
+
+    resetEditForm() {
+        const form = document.getElementById('editForm');
+        if (form) {
+            form.reset();
+            this.resetEditFormErrors();
+        }
+    }
+
+    handleTambahSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        this.submitForm(form, 'create');
+    }
+
+    handleImportSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        
+        // Validasi file
+        const fileInput = form.querySelector('#file');
+        if (!fileInput || !fileInput.files[0]) {
+            this.showError('Harap pilih file terlebih dahulu');
+            return;
+        }
+        
+        this.submitForm(form, 'import');
+    }
+
+    async submitForm(form, type) {
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton ? submitButton.innerHTML : '';
+
+        try {
+            // Show loading
+            if (submitButton) {
+                const loadingText = type === 'create' ? 'Menyimpan data...' : 'Mengimport data...';
+                this.showButtonLoading(submitButton, loadingText);
+            }
+
+            // Validasi untuk form create
+            if (type === 'create' && !this.validateForm(form)) {
+                if (submitButton) {
+                    this.resetButtonState(submitButton, originalText);
+                }
+                return;
+            }
+
+            // Kirim request
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': this.getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': type === 'import' ? 'application/json' : 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Tutup modal
+                const modalId = type === 'create' ? 'tambahModal' : 'importModal';
+                const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // Reset form
+                form.reset();
+                if (type === 'import') {
+                    this.clearFile();
+                }
+
+                // Tampilkan success message
+                const successTitle = type === 'create' ? 'Data Berhasil Disimpan' : 'Import Berhasil';
+                await Swal.fire({
+                    icon: 'success',
+                    title: successTitle,
+                    text: result.message || 'Operasi berhasil dilakukan',
+                    confirmButtonColor: '#198754',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Refresh data
+                await this.loadTableData();
             } else {
                 let errorMessage = result.message || `Server error: ${response.status}`;
                 
@@ -135,82 +411,44 @@ class KodeKegiatanManager {
                 
                 throw new Error(errorMessage);
             }
-
         } catch (error) {
-            console.error(`❌ ${type.toUpperCase()} failed:`, error);
-            this.handleFormError(type, error, submitButton, originalText);
+            console.error(`❌ ${type} failed:`, error);
+            this.showError(error.message || 'Terjadi kesalahan');
+        } finally {
+            if (submitButton) {
+                this.resetButtonState(submitButton, originalText);
+            }
         }
     }
 
-    formatValidationErrors(errors) {
-        let message = 'Validasi gagal:\n';
-        for (const field in errors) {
-            message += `- ${errors[field].join(', ')}\n`;
-        }
-        return message;
-    }
+    validateForm(form) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
 
-    handleFormSuccess(type, data, form) {
-        // Tutup modal berdasarkan type
-        const modalId = type === 'create' ? 'tambahModal' : 
-                       type === 'import' ? 'importModal' : null;
-        
-        if (modalId) {
-            this.closeModalById(modalId);
-        } else {
-            // Untuk update, tutup modal yang aktif
-            this.closeActiveModal();
-        }
-
-        // Reset form
-        if (form && type !== 'update') {
-            form.reset();
-        }
-
-        // Tampilkan success message
-        const successTitle = type === 'create' ? 'Data Berhasil Disimpan' :
-                           type === 'update' ? 'Data Berhasil Diperbarui' :
-                           'Import Berhasil';
-
-        Swal.fire({
-            icon: 'success',
-            title: successTitle,
-            text: data.message || 'Operasi berhasil dilakukan',
-            confirmButtonColor: '#198754',
-            timer: 2000,
-            showConfirmButton: false
-        }).then(() => {
-            window.location.reload();
-        });
-    }
-
-    handleFormError(type, error, button, originalText) {
-        if (button) {
-            this.resetButtonState(button, originalText);
-        }
-        
-        const errorTitle = type === 'create' ? 'Gagal Menyimpan' :
-                          type === 'update' ? 'Gagal Memperbarui' :
-                          'Import Gagal';
-
-        Swal.fire({
-            icon: 'error',
-            title: errorTitle,
-            html: error.message.replace(/\n/g, '<br>') || 'Terjadi kesalahan. Silakan coba lagi.',
-            confirmButtonColor: '#dc3545'
-        });
-    }
-
-    initializeDeleteButtons() {
-        console.log('🔄 Initializing delete buttons...');
-        
-        // Event delegation untuk tombol hapus
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-delete')) {
-                e.preventDefault();
-                this.handleDeleteClick(e.target.closest('.btn-delete'));
+        // Reset validasi sebelumnya
+        requiredFields.forEach(field => {
+            field.classList.remove('is-invalid');
+            const feedback = field.nextElementSibling;
+            if (feedback && feedback.classList.contains('invalid-feedback')) {
+                feedback.remove();
             }
         });
+
+        // Validasi field required
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                
+                // Tambah pesan error
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback';
+                errorDiv.textContent = 'Field ini wajib diisi';
+                field.parentNode.appendChild(errorDiv);
+            }
+        });
+
+        return isValid;
     }
 
     handleDeleteClick(button) {
@@ -221,22 +459,17 @@ class KodeKegiatanManager {
         const uraian = button.getAttribute('data-uraian');
 
         if (!kegiatanId) {
-            console.error('❌ No kegiatan ID found');
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'ID kegiatan tidak ditemukan'
-            });
+            this.showError('ID kegiatan tidak ditemukan');
             return;
         }
 
         this.showDeleteConfirmation(kegiatanId, kode, program, subProgram, uraian);
     }
 
-    showDeleteConfirmation(kegiatanId, kode, program, subProgram, uraian) {
+    async showDeleteConfirmation(kegiatanId, kode, program, subProgram, uraian) {
         const itemDescription = `${kode} - ${program}`;
 
-        Swal.fire({
+        const result = await Swal.fire({
             title: 'Apakah Anda yakin?',
             html: `
                 <div class="text-start">
@@ -258,161 +491,134 @@ class KodeKegiatanManager {
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal',
-            reverseButtons: true,
-            showLoaderOnConfirm: true,
-            preConfirm: async () => {
-                try {
-                    const response = await fetch(`/referensi/kode-kegiatan/${kegiatanId}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': this.getCsrfToken(),
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    });
+            reverseButtons: true
+        });
 
-                    if (response.ok) {
-                        const result = await response.json();
-                        if (result.success) {
-                            return { success: true };
-                        } else {
-                            throw new Error(result.message || 'Delete failed');
-                        }
-                    } else {
-                        throw new Error(`HTTP ${response.status}`);
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`/referensi/kode-kegiatan/${kegiatanId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': this.getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
                     }
-                } catch (error) {
-                    Swal.showValidationMessage(`Hapus gagal: ${error.message}`);
-                    return false;
-                }
-            }
-        }).then((result) => {
-            if (result.isConfirmed && result.value && result.value.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Terhapus!',
-                    text: 'Data berhasil dihapus.',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.reload();
                 });
-            } else if (result.isDismissed) {
-                // User cancelled, do nothing
-                console.log('Delete cancelled by user');
-            }
-        });
-    }
 
-    validateForm(form) {
-        const requiredFields = form.querySelectorAll('[required]');
-        let isValid = true;
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Terhapus!',
+                            text: 'Data berhasil dihapus.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
 
-        // Reset validasi sebelumnya
-        requiredFields.forEach(field => {
-            field.classList.remove('is-invalid');
-            const feedback = field.parentNode.querySelector('.invalid-feedback');
-            if (feedback) {
-                feedback.remove();
-            }
-        });
-
-        // Validasi field required
-        requiredFields.forEach(field => {
-            if (!field.value.trim()) {
-                isValid = false;
-                field.classList.add('is-invalid');
-                
-                // Tambah pesan error jika belum ada
-                if (!field.parentNode.querySelector('.invalid-feedback')) {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'invalid-feedback';
-                    errorDiv.textContent = 'Field ini wajib diisi';
-                    field.parentNode.appendChild(errorDiv);
-                }
-            }
-        });
-
-        if (!isValid) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Data Tidak Lengkap',
-                text: 'Harap lengkapi semua field yang wajib diisi',
-                confirmButtonColor: '#ffc107'
-            });
-            return false;
-        }
-
-        return true;
-    }
-
-    initializeSearch() {
-        const searchInput = document.querySelector('input[name="search"]');
-        if (searchInput) {
-            let timeout;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    const searchTerm = e.target.value.trim();
-                    if (searchTerm.length >= 2 || searchTerm.length === 0) {
-                        this.performSearch(searchTerm);
+                        // Refresh data
+                        await this.loadTableData();
+                    } else {
+                        throw new Error(result.message || 'Delete failed');
                     }
-                }, 500);
-            });
-        }
-    }
-
-    async performSearch(searchTerm) {
-        try {
-            const response = await fetch(`/kegiatan/search?search=${encodeURIComponent(searchTerm)}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                this.updateTable(data.data);
-            } else {
-                console.error('Search failed:', data.message);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('❌ Delete failed:', error);
+                this.showError('Gagal menghapus data: ' + error.message);
             }
-        } catch (error) {
-            console.error('Search error:', error);
         }
     }
 
-    updateTable(data) {
-        const tbody = document.getElementById('kegiatanTableBody');
-        if (!tbody) return;
+    handlePaginationClick(link) {
+        if (this.isLoading) return;
+        
+        const url = link.getAttribute('href');
+        if (!url) return;
 
-        if (data.length === 0) {
+        // Ambil page number dari URL
+        const urlObj = new URL(url, window.location.origin);
+        const page = urlObj.searchParams.get('page') || 1;
+        this.currentPage = parseInt(page);
+        
+        this.loadTableData();
+    }
+
+    updateTableContent(html) {
+        const tbody = document.getElementById('kegiatanTableBody');
+        if (tbody) {
+            tbody.innerHTML = html;
+        }
+    }
+
+    updatePaginationContent(html) {
+        const container = document.getElementById('paginationContainer');
+        if (container) {
+            container.innerHTML = html;
+        }
+    }
+
+    showTableLoading() {
+        const tbody = document.getElementById('kegiatanTableBody');
+        if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        <i class="bi bi-search me-2"></i>Tidak ada data ditemukan
+                    <td colspan="6" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2">Memuat data...</p>
                     </td>
                 </tr>
             `;
-            return;
         }
-
-        tbody.innerHTML = data.map(item => `
-            <tr>
-                <td>${item.index}</td>
-                <td>${item.kode}</td>
-                <td>${item.program}</td>
-                <td>${item.sub_program}</td>
-                <td>${item.uraian}</td>
-                <td>${item.actions}</td>
-            </tr>
-        `).join('');
     }
 
-    // FILE UPLOAD FUNCTIONALITY
+    hideTableLoading() {
+        // Implementasi jika diperlukan
+    }
+
+    showButtonLoading(button, text) {
+        button.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            ${text}
+        `;
+        button.disabled = true;
+    }
+
+    resetButtonState(button, originalText) {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
+    showError(message) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Terjadi Kesalahan',
+            text: message,
+            confirmButtonColor: '#dc3545'
+        });
+    }
+
+    formatValidationErrors(errors) {
+        let message = 'Validasi gagal:\n';
+        for (const field in errors) {
+            message += `- ${errors[field].join(', ')}\n`;
+        }
+        return message;
+    }
+
+    getCsrfToken() {
+        const token = document.querySelector('meta[name="csrf-token"]');
+        return token ? token.getAttribute('content') : '';
+    }
+
+    // File upload methods (tetap sama seperti sebelumnya)
     initializeFileUpload() {
         console.log('🔄 Initializing file upload...');
         
         const fileInput = document.getElementById('file');
-        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-        const uploadPreview = document.getElementById('uploadPreview');
-        const importForm = document.getElementById('importForm');
-
         if (fileInput) {
             fileInput.addEventListener('change', (e) => {
                 this.handleFileSelect(e);
@@ -423,12 +629,6 @@ class KodeKegiatanManager {
             if (uploadArea) {
                 this.setupDragAndDrop(uploadArea, fileInput);
             }
-        }
-
-        if (importForm) {
-            importForm.addEventListener('submit', (e) => {
-                this.handleImportSubmit(e);
-            });
         }
 
         // Reset file input ketika modal import ditutup
@@ -541,50 +741,22 @@ class KodeKegiatanManager {
         const fileReadyText = document.getElementById('fileReadyText');
 
         // Update main preview
-        fileName.textContent = file.name;
-        fileSize.textContent = this.formatFileSize(file.size);
-        fileType.textContent = this.getFileTypeDescription(file);
+        if (fileName) fileName.textContent = file.name;
+        if (fileSize) fileSize.textContent = this.formatFileSize(file.size);
+        if (fileType) fileType.textContent = this.getFileTypeDescription(file);
         
         // Update info summary
-        infoFileName.textContent = this.truncateFileName(file.name, 20);
-        infoFileSize.textContent = this.formatFileSize(file.size);
-        infoFileType.textContent = this.getFileExtension(file.name).toUpperCase();
+        if (infoFileName) infoFileName.textContent = this.truncateFileName(file.name, 20);
+        if (infoFileSize) infoFileSize.textContent = this.formatFileSize(file.size);
+        if (infoFileType) infoFileType.textContent = this.getFileExtension(file.name).toUpperCase();
         
         // Update ready text
-        fileReadyText.textContent = `File "${this.truncateFileName(file.name, 30)}" siap diimport.`;
+        if (fileReadyText) fileReadyText.textContent = `File "${this.truncateFileName(file.name, 30)}" siap diimport.`;
         
         // Show elements
-        uploadPlaceholder.classList.add('d-none');
-        uploadPreview.classList.remove('d-none');
-        fileInfoSummary.classList.remove('d-none');
-        
-        // Add success animation
-        this.addAnimation(uploadPreview, 'animate__fadeIn');
-    }
-
-    handleImportSubmit(e) {
-        const fileInput = document.getElementById('file');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'File Belum Dipilih',
-                text: 'Harap pilih file Excel terlebih dahulu',
-                confirmButtonColor: '#ffc107'
-            });
-            return;
-        }
-
-        const btnImport = document.getElementById('btnImport');
-        if (btnImport) {
-            btnImport.innerHTML = `
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                Mengimport ${this.truncateFileName(file.name, 15)}...
-            `;
-            btnImport.disabled = true;
-        }
+        if (uploadPlaceholder) uploadPlaceholder.classList.add('d-none');
+        if (uploadPreview) uploadPreview.classList.remove('d-none');
+        if (fileInfoSummary) fileInfoSummary.classList.remove('d-none');
     }
 
     clearFile() {
@@ -597,55 +769,8 @@ class KodeKegiatanManager {
         if (uploadPlaceholder) uploadPlaceholder.classList.remove('d-none');
         if (uploadPreview) uploadPreview.classList.add('d-none');
         if (fileInfoSummary) fileInfoSummary.classList.add('d-none');
-        
-        // Add reset animation
-        if (uploadPlaceholder) {
-            this.addAnimation(uploadPlaceholder, 'animate__fadeIn');
-        }
     }
 
-    // Utility methods
-    getCsrfToken() {
-        const token = document.querySelector('meta[name="csrf-token"]');
-        return token ? token.getAttribute('content') : '';
-    }
-
-    showLoadingState(button, type) {
-        const loadingText = type === 'create' ? 'Menyimpan data...' : 
-                          type === 'update' ? 'Memperbarui data...' : 
-                          'Mengimport data...';
-        
-        button.innerHTML = `
-            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            ${loadingText}
-        `;
-        button.disabled = true;
-    }
-
-    resetButtonState(button, originalText) {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }
-
-    closeModalById(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            const bsModal = bootstrap.Modal.getInstance(modal) || new bootstrap.Modal(modal);
-            bsModal.hide();
-        }
-    }
-
-    closeActiveModal() {
-        const activeModal = document.querySelector('.modal.show');
-        if (activeModal) {
-            const bsModal = bootstrap.Modal.getInstance(activeModal);
-            if (bsModal) {
-                bsModal.hide();
-            }
-        }
-    }
-
-    // File utility methods
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -672,26 +797,12 @@ class KodeKegiatanManager {
         if (filename.length <= maxLength) return filename;
         const extension = this.getFileExtension(filename);
         const nameWithoutExt = filename.slice(0, -(extension.length + 1));
-        const truncateLength = maxLength - extension.length - 4; // -4 for "..." and "."
+        const truncateLength = maxLength - extension.length - 4;
         return nameWithoutExt.slice(0, truncateLength) + '...' + extension;
-    }
-
-    addAnimation(element, animationClass) {
-        element.classList.add('animate__animated', animationClass);
-        setTimeout(() => {
-            element.classList.remove('animate__animated', animationClass);
-        }, 1000);
     }
 }
 
-// Initialize ketika DOM siap
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    new KodeKegiatanManager();
+    window.kodeKegiatanManager = new KodeKegiatanManager();
 });
-
-// Juga initialize dengan timeout untuk backup
-setTimeout(() => {
-    if (typeof KodeKegiatanManager !== 'undefined') {
-        new KodeKegiatanManager();
-    }
-}, 100);

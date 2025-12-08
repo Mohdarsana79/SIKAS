@@ -230,6 +230,7 @@ Route::middleware(['auth'])->prefix('referensi')->group(function () {
 
     // Rekening Belanja
     Route::get('/rekening-belanja', [RekeningBelanjaController::class, 'index'])->name('referensi.rekening-belanja.index');
+    Route::get('/rekening-belanja/paginate', [RekeningBelanjaController::class, 'paginate'])->name('referensi.rekening-belanja.paginate');
     Route::post('/rekening-belanja', [RekeningBelanjaController::class, 'store'])->name('referensi.rekening-belanja.store');
     Route::put('/rekening-belanja/{rekeningBelanja}', [RekeningBelanjaController::class, 'update'])->name('referensi.rekening-belanja.update');
 
@@ -244,6 +245,7 @@ Route::middleware(['auth'])->prefix('referensi')->group(function () {
 
     // Kode Kegiatan
     Route::get('/referensi/kode-kegiatan', [KodeKegiatanController::class, 'index'])->name('referensi.kode-kegiatan.index');
+    Route::get('/kode-kegiatan/paginate', [KodeKegiatanController::class, 'paginate'])->name('referensi.kode-kegiatan.paginate');
     Route::post('/kode-kegiatan', [KodeKegiatanController::class, 'store'])->name('referensi.kode-kegiatan.store');
     Route::put('/kode-kegiatan/{id}', [KodeKegiatanController::class, 'update'])->name('referensi.kode-kegiatan.update');
     Route::delete('/kode-kegiatan/{id}', [KodeKegiatanController::class, 'destroy'])->name('referensi.kode-kegiatan.destroy');
