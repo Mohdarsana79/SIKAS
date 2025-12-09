@@ -192,10 +192,10 @@
 
             <!-- Baris Saldo Kas Tunai -->
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">1-{{ $bulanAngka }}-{{ $tahun }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">1/{{ $bulanAngka }}/{{ $tahun }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
-                <td style="font-size: {{$printSettings['font_size']}};">Saldo Kas Tunai</td>
+                <td style="font-size: {{$printSettings['font_size']}};">Saldo Kas Tunai {{ $bulan }} {{ $tahun }}</td>
                 <td class="text-right" style="font-size: {{$printSettings['font_size']}};">{{ number_format($saldoAwalTunai, 0, ',', '.') }}</td>
                 <td class="text-right" style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td class="text-right" style="font-size: {{$printSettings['font_size']}};">{{ number_format($currentSaldo, 0, ',', '.') }}</td>
@@ -204,7 +204,7 @@
             <!-- Data Penarikan Tunai -->
             @foreach($penarikanTunais as $penarikan)
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($penarikan->tanggal_penarikan)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($penarikan->tanggal_penarikan)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Penarikan Tunai</td>
@@ -222,7 +222,7 @@
             <!-- Data Setor Tunai -->
             @foreach($setorTunais as $setor)
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($setor->tanggal_setor)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($setor->tanggal_setor)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Setor Tunai</td>
@@ -240,7 +240,7 @@
             <!-- Data Transaksi BKU Tunai -->
             @foreach($bkuDataTunai as $transaksi)
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">{{ $transaksi->rekeningBelanja->kode_rekening ?? '-' }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">{{ $transaksi->id_transaksi }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">{{ $transaksi->uraian_opsional }}</td>
@@ -259,7 +259,7 @@
             @if(empty($transaksi->ntpn))
             <!-- Jika NTPN belum ada (Terima Pajak) - di kolom PENERIMAAN -->
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">{{ $transaksi->kode_masa_pajak }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Terima Pajak {{ $transaksi->pajak }} {{ $transaksi->persen_pajak }}% {{ $transaksi->uraian_opsional }}
@@ -276,7 +276,7 @@
             @else
             <!-- Jika NTPN sudah ada (Setor Pajak) - tampil di KEDUA KOLOM -->
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">{{ $transaksi->kode_masa_pajak }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Setor Pajak {{ $transaksi->pajak }} {{ $transaksi->persen_pajak }}% {{ $transaksi->uraian_opsional }}
@@ -298,7 +298,7 @@
             @if(empty($transaksi->ntpn))
             <!-- Jika NTPN belum ada (Terima Pajak Daerah) - di kolom PENERIMAAN -->
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Terima Pajak Daerah {{ $transaksi->pajak_daerah }} {{ $transaksi->persen_pajak_daerah }}% {{
@@ -315,7 +315,7 @@
             @else
             <!-- Jika NTPN sudah ada (Setor Pajak Daerah) - tampil di KEDUA KOLOM -->
             <tr>
-                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td class="text-center" style="font-size: {{$printSettings['font_size']}};">{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">-</td>
                 <td style="font-size: {{$printSettings['font_size']}};">Setor Pajak Daerah {{ $transaksi->pajak_daerah }} {{ $transaksi->persen_pajak_daerah }}% {{

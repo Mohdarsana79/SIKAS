@@ -27,7 +27,7 @@
                 'tanggal' => '1/'.$bulanAngka.'/'.$tahun,
                 'kode_rekening' => '-',
                 'no_bukti' => '-',
-                'uraian' => 'Saldo Awal bulan ' . $bulan,
+                'uraian' => 'Saldo Awal bulan ' . $bulan . ' ' . $tahun,
                 'penerimaan' => $saldoAwal,
                 'pengeluaran' => 0,
                 'is_saldo_awal' => true
@@ -39,9 +39,18 @@
                     'tanggal' => '1/'.$bulanAngka.'/'.$tahun,
                     'kode_rekening' => '-',
                     'no_bukti' => '-',
-                    'uraian' => 'Saldo Kas Tunai',
+                    'uraian' => 'Saldo Kas Tunai ' . $bulan . ' ' . $tahun,
                     'penerimaan' => $saldoAwalTunai,
                     'pengeluaran' => 0
+                ];
+            } else {
+                $rowsData[] = [
+                'tanggal' => '1/'.$bulanAngka.'/'.$tahun,
+                'kode_rekening' => '-',
+                'no_bukti' => '-',
+                'uraian' => 'Saldo Kas Tunai ' . $bulan . ' ' . $tahun,
+                'penerimaan' => 0,
+                'pengeluaran' => 0
                 ];
             }
 
@@ -182,6 +191,15 @@
                     'penerimaan' => $bungaRecord->bunga_bank,
                     'pengeluaran' => 0
                 ];
+            }else {
+                $rowsData[] = [
+                'tanggal' => \Carbon\Carbon::parse($bungaRecord->tanggal_transaksi)->format('d/m/Y'),
+                'kode_rekening' => '299',
+                'no_bukti' => '-',
+                'uraian' => 'Bunga Bank',
+                'penerimaan' => 0,
+                'pengeluaran' => 0
+                ];
             }
 
             // PAJAK BUNGA BANK
@@ -193,6 +211,15 @@
                     'uraian' => 'Pajak Bunga Bank',
                     'penerimaan' => 0,
                     'pengeluaran' => $bungaRecord->pajak_bunga_bank
+                ];
+            } else {
+                $rowsData[] = [
+                'tanggal' => \Carbon\Carbon::parse($bungaRecord->tanggal_transaksi)->format('d/m/Y'),
+                'kode_rekening' => '199',
+                'no_bukti' => '-',
+                'uraian' => 'Pajak Bunga Bank',
+                'penerimaan' => 0,
+                'pengeluaran' => 0
                 ];
             }
             @endphp

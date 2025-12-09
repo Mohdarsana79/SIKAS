@@ -118,6 +118,17 @@
                         <td class="text-end">0</td>
                         <td class="text-end">{{ number_format($saldo, 0, ',', '.') }}</td>
                     </tr>
+                    @else
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($bungaRecord->tanggal_transaksi)->format('d-m-Y') }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>Bunga Bank</td>
+                            <td class="text-end">0</td>
+                            <td class="text-end">0</td>
+                            <td class="text-end">{{ number_format($saldo, 0, ',', '.') }}</td>
+                        </tr>
                     @endif
 
                     <!-- Baris Pajak Bunga -->
@@ -136,6 +147,17 @@
                         <td class="text-end">{{ number_format($bungaRecord->pajak_bunga_bank, 0, ',', '.') }}</td>
                         <td class="text-end">{{ number_format($saldo, 0, ',', '.') }}</td>
                     </tr>
+                    @else
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($bungaRecord->tanggal_transaksi)->format('d-m-Y') }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>Pajak Bunga</td>
+                            <td class="text-end">0</td>
+                            <td class="text-end">0</td>
+                            <td class="text-end">{{ number_format($saldo, 0, ',', '.') }}</td>
+                        </tr>
                     @endif
 
                     <!-- Baris Jumlah -->

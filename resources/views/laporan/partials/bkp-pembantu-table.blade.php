@@ -21,7 +21,7 @@
                 <td>1/{{ $bulanAngka }}/{{ $tahun }}</td>
                 <td>-</td>
                 <td>-</td>
-                <td>Saldo Kas Tunai</td>
+                <td>Saldo Kas Tunai {{ $bulan }} {{ $tahun }}</td>
                 <td class="text-end">{{ number_format($saldoAwalTunai, 0, ',', '.') }}</td>
                 <td class="text-end">-</td>
                 <td class="text-end">{{ number_format($currentSaldo, 0, ',', '.') }}</td>
@@ -30,7 +30,7 @@
             <!-- Data Penarikan Tunai -->
             @foreach($penarikanTunais as $penarikan)
             <tr>
-                <td>{{ \Carbon\Carbon::parse($penarikan->tanggal_penarikan)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($penarikan->tanggal_penarikan)->format('d/m/Y') }}</td>
                 <td>-</td>
                 <td>-</td>
                 <td>Penarikan Tunai</td>
@@ -48,7 +48,7 @@
             <!-- Data Setor Tunai -->
             @foreach($setorTunais as $setor)
             <tr>
-                <td>{{ \Carbon\Carbon::parse($setor->tanggal_setor)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($setor->tanggal_setor)->format('d/m/Y') }}</td>
                 <td>-</td>
                 <td>-</td>
                 <td>Setor Tunai</td>
@@ -66,7 +66,7 @@
             <!-- Data Transaksi BKU Tunai -->
             @foreach($bkuDataTunai as $transaksi)
             <tr>
-                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td>{{ $transaksi->rekeningBelanja->kode_rekening ?? '-' }}</td>
                 <td>{{ $transaksi->id_transaksi }}</td>
                 <td>{{ $transaksi->uraian_opsional }}</td>
@@ -102,7 +102,7 @@
             @else
             <!-- Jika NTPN sudah ada (Setor Pajak) - tampil di KEDUA KOLOM -->
             <tr>
-                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td>-</td>
                 <td>{{ $transaksi->kode_masa_pajak }}</td>
                 <td>Setor Pajak {{ $transaksi->pajak }} {{ $transaksi->persen_pajak }}% {{ $transaksi->uraian_opsional }}
@@ -124,7 +124,7 @@
             @if(empty($transaksi->ntpn))
             <!-- Jika NTPN belum ada (Terima Pajak Daerah) - di kolom PENERIMAAN -->
             <tr>
-                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td>-</td>
                 <td>-</td>
                 <td>Terima Pajak Daerah {{ $transaksi->pajak_daerah }} {{ $transaksi->persen_pajak_daerah }}% {{
@@ -141,7 +141,7 @@
             @else
             <!-- Jika NTPN sudah ada (Setor Pajak Daerah) - tampil di KEDUA KOLOM -->
             <tr>
-                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d-m-Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($transaksi->tanggal_transaksi)->format('d/m/Y') }}</td>
                 <td>-</td>
                 <td>-</td>
                 <td>Setor Pajak Daerah {{ $transaksi->pajak_daerah }} {{ $transaksi->persen_pajak_daerah }}% {{
