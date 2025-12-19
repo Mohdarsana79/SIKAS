@@ -65,6 +65,8 @@ export default class BkuManager {
         this.attachBkuEventListeners = this.attachBkuEventListeners.bind(this);
         this.attachLaporPajakEvents = this.attachLaporPajakEvents.bind(this);
         this.handleSimpanLaporPajak = this.handleSimpanLaporPajak.bind(this);
+        this.updateRowAfterLaporPajak = this.updateRowAfterLaporPajak.bind(this);
+        this.updateTableAfterLaporPajak = this.updateTableAfterLaporPajak.bind(this);
         this.updateSaldoDisplay = this.updateSaldoDisplay.bind(this);
         this.formatRupiah = this.formatRupiah.bind(this);
         // Bind methods edit bunga modal
@@ -3507,7 +3509,7 @@ export default class BkuManager {
             $(`#detailModal${bkuId}`).modal('show');
         });
 
-        // Lapor pajak modal
+        // Lapor pajak modal - gunakan event delegation untuk elemen yang baru dimuat
         $(document).on('click', '.btn-lapor-pajak', (e) => {
             e.preventDefault();
             const bkuId = $(e.currentTarget).data('id');
@@ -3673,8 +3675,14 @@ export default class BkuManager {
                         icon: 'success',
                         confirmButtonColor: '#198754'
                     }).then(() => {
+                        // Tutup modal tanpa reload halaman
                         $('#laporPajakModal').modal('hide');
-                        location.reload();
+                        
+                        // Perbarui tampilan baris transaksi yang dilaporkan
+                        this.updateRowAfterLaporPajak(bkuId, formData);
+                        
+                        // Perbarui data tabel (opsional, jika ingin memperbarui seluruh tabel)
+                        // this.updateTableAfterLaporPajak();
                     });
                 } else {
                     Swal.fire('Error!', response.message, 'error');
@@ -3699,6 +3707,85 @@ export default class BkuManager {
                 button.prop('disabled', false).html('Simpan');
             }
         });
+    }
+
+    /**
+     * Update baris BKU setelah lapor pajak
+     */
+    updateRowAfterLaporPajak(bkuId, pajakData) {
+        // Cari baris dengan data-bku-id yang sesuai
+        const row = $(`tr[data-bku-id="${bkuId}"]`);
+        
+        if (row.length) {
+            // Ambil nilai pajak asli dari data attribute
+            const pajakAmount = parseFloat(row.data('pajak-amount')) || 0;
+            
+            // Format nilai pajak
+            const formattedPajak = 'Rp ' + this.formatRupiah(pajakAmount);
+            
+            // Kolom pajak (kolom ke-8)
+            const pajakCell = row.find('td').eq(7);
+            
+            // Update tampilan pajak dengan status sudah dilaporkan
+            pajakCell.html(`
+                <span class="text-dark">${formattedPajak}</span>
+                <small class="text-success d-block" title="NTPN: ${pajakData.ntpn}">
+                    <i class="bi bi-check-circle-fill"></i> Sudah dilaporkan
+                </small>
+            `);
+            
+            // Update tombol dropdown
+            const laporPajakLink = row.find('.btn-lapor-pajak');
+            if (laporPajakLink.length) {
+                laporPajakLink.html(`
+                    <i class="bi bi-check-circle me-2"></i>Edit Lapor Pajak
+                `);
+                laporPajakLink.data('ntpn', pajakData.ntpn);
+            }
+            
+            // Update icon dan warna di dropdown jika ada
+            const iconElement = row.find('.btn-lapor-pajak i');
+            if (iconElement.length) {
+                iconElement.removeClass('bi-info-circle').addClass('bi-check-circle');
+            }
+            
+            // Tambahkan atribut data untuk memudahkan pembaruan berikutnya
+            row.data('pajak-reported', true);
+            row.data('pajak-ntpn', pajakData.ntpn);
+            
+            console.log('Row updated for BKU ID:', bkuId, 'Pajak amount:', pajakAmount);
+        } else {
+            // Jika tidak ditemukan baris spesifik, perbarui seluruh tabel
+            console.log('Row not found, updating entire table...');
+            this.updateTableAfterLaporPajak();
+        }
+    }
+
+    /**
+     * Perbarui tabel setelah lapor pajak
+     */
+    async updateTableAfterLaporPajak() {
+        try {
+            console.log('Updating table after lapor pajak...');
+            
+            // Ambil data tabel terbaru
+            const response = await $.ajax({
+                url: `/bku/table-data/${this.tahun}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            if (response.success && response.html) {
+                // Perbarui tabel dengan HTML baru
+                $('#bkuTableBody').html(response.html);
+                
+                // Re-attach event listeners
+                this.attachBkuEventListeners();
+                
+                console.log('Table updated successfully after lapor pajak');
+            }
+        } catch (error) {
+            console.error('Error updating table after lapor pajak:', error);
+        }
     }
 
     /**

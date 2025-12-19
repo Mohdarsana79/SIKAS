@@ -122,7 +122,7 @@ $hasData = !empty($tableData['penerimaan_danas']) || !empty($tableData['penarika
 
 <!-- Data BKU -->
 @foreach($tableData['bku_data'] as $bku)
-<tr class="bku-row" data-bku-id="{{ $bku['id'] }}">
+<tr class="bku-row" data-bku-id="{{ $bku['id'] }}" data-pajak-amount="{{ $bku['total_pajak'] }}">
     <td class="px-4 py-3">{{ $bku['id_transaksi'] }}</td>
     <td class="px-4 py-3">{{ $bku['tanggal'] }}</td>
     <td class="px-4 py-3">{{ $bku['kegiatan'] }}</td>
