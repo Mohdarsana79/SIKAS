@@ -2035,7 +2035,7 @@ export default class BkuManager {
     }
 
     /**
-     * Handle hapus semua data bulan
+     * Handle hapus semua data bulan dengan AJAX (tanpa reload)
      */
     handleDeleteAllBulan(e) {
         e.preventDefault();
@@ -2045,14 +2045,6 @@ export default class BkuManager {
         const bulan = button.data('bulan');
         const tahun = button.data('tahun');
         const jumlahData = button.data('jumlah-data') || 0;
-
-        console.log('Bulan:', bulan, 'Tahun:', tahun, 'Jumlah Data:', jumlahData);
-
-        if (typeof Swal === 'undefined') {
-            console.error('SweetAlert2 not loaded!');
-            alert('Error: SweetAlert2 tidak terload. Silakan refresh halaman.');
-            return;
-        }
 
         Swal.fire({
             title: 'Apakah Anda yakin?',
@@ -2080,9 +2072,6 @@ export default class BkuManager {
             showLoaderOnConfirm: true,
             preConfirm: () => {
                 return new Promise((resolve, reject) => {
-                    console.log('Sending AJAX request...');
-                    
-                    // Build URL dari route
                     const url = `/bku/${tahun}/${bulan}/all`;
                     
                     $.ajax({
@@ -2093,13 +2082,11 @@ export default class BkuManager {
                             'Accept': 'application/json'
                         },
                         success: function(response) {
-                            console.log('AJAX success:', response);
                             resolve(response);
                         },
                         error: function(xhr, status, error) {
-                            console.error('AJAX error:', xhr, status, error);
                             let errorMessage = 'Terjadi kesalahan server';
-                    
+                            
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             } else if (xhr.status === 404) {
@@ -2118,7 +2105,26 @@ export default class BkuManager {
             allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                console.log('Delete confirmed, result:', result);
+                // Kosongkan tabel
+                $('#bkuTableBody').html(`
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            Tidak ada data transaksi
+                        </td>
+                    </tr>
+                `);
+                
+                // Update summary
+                this.updateSummaryAfterDelete();
+                
+                // Sembunyikan tombol hapus semua
+                $('#hapusSemuaBulan').hide();
+                
+                // Update status button jika diperlukan
+                if ($('#btnTutupBku').length) {
+                    $('#btnTutupBku').prop('disabled', false);
+                }
+                
                 Swal.fire({
                     title: 'Berhasil!',
                     html: `<div class="text-start">
@@ -2128,44 +2134,34 @@ export default class BkuManager {
                     icon: 'success',
                     confirmButtonColor: '#198754',
                     confirmButtonText: 'OK',
-                    customClass: {
-                        confirmButton: 'btn btn-success'
-                    },
-                    buttonsStyling: false
-                }).then(() => {
-                    console.log('Reloading page...');
-                    location.reload();
+                    timer: 2000,
+                    showConfirmButton: false
                 });
-            } else {
-                console.log('Delete cancelled');
             }
         }).catch((error) => {
-            console.error('SweetAlert error:', error);
             Swal.fire({
                 title: 'Error!',
                 text: error.message,
                 icon: 'error',
                 confirmButtonColor: '#d33',
-                confirmButtonText: 'OK',
-                customClass: {
-                    confirmButton: 'btn btn-danger'
-                },
-                buttonsStyling: false
+                confirmButtonText: 'OK'
             });
         });
     }
 
     /**
-     * Handle hapus data individual (generik)
+     * Handle hapus data individual (generik) dengan AJAX
      */
-    handleDeleteGeneric(e, type) {
+    handleDeleteGeneric(e, type, refreshType = 'full') {
         e.preventDefault();
+        
         const button = $(e.currentTarget);
         const url = button.attr('href');
         const id = button.data('id');
-
+        const row = button.closest('tr');
+        
         const typeMap = {
-            'individual': 'transaksi',
+            'individual': 'transaksi BKU',
             'penarikan': 'penarikan tunai',
             'penerimaan': 'penerimaan dana',
             'saldo-awal': 'saldo awal',
@@ -2188,21 +2184,155 @@ export default class BkuManager {
                 confirmButton: 'btn btn-danger me-2',
                 cancelButton: 'btn btn-secondary me-2'
             },
-            buttonsStyling: false
+            buttonsStyling: false,
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: url,
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'Accept': 'application/json'
+                        },
+                        success: function(response) {
+                            resolve(response);
+                        },
+                        error: function(xhr, status, error) {
+                            let errorMessage = 'Terjadi kesalahan server';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.status === 404) {
+                                errorMessage = 'Data tidak ditemukan';
+                            } else if (xhr.status === 422) {
+                                errorMessage = 'Terjadi kesalahan validasi';
+                            } else if (xhr.status === 500) {
+                                errorMessage = 'Error server internal';
+                            }
+                            
+                            reject(new Error(errorMessage));
+                        }
+                    });
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                this.executeFormDelete(url);
+                // Hapus baris dari tabel
+                if (row.length) {
+                    row.fadeOut(300, function() {
+                        $(this).remove();
+                        
+                        // Cek apakah tabel kosong
+                        if ($('#bkuTableBody tr').length === 0) {
+                            $('#bkuTableBody').html(`
+                                <tr>
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        Tidak ada data transaksi
+                                    </td>
+                                </tr>
+                            `);
+                        }
+                    });
+                }
+                
+                // Update data summary tanpa reload
+                this.updateSummaryAfterDelete();
+                
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: result.value.message || `${typeText} berhasil dihapus`,
+                    icon: 'success',
+                    confirmButtonColor: '#198754',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             }
+        }).catch((error) => {
+            Swal.fire({
+                title: 'Error!',
+                text: error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'OK'
+            });
         });
     }
 
     /**
-     * Execute form delete
+     * Update summary setelah penghapusan
+     */
+    async updateSummaryAfterDelete() {
+        try {
+            // Ambil data summary terbaru
+            const response = await $.ajax({
+                url: `/bku/summary-data/${this.tahun}/${this.bulan}`,
+                method: 'GET'
+            });
+            
+            if (response.success && response.data) {
+                this.updateSummaryDisplay(response.data);
+            }
+        } catch (error) {
+            console.error('Error updating summary:', error);
+        }
+    }
+
+    /**
+     * Update display summary data
+     */
+    updateSummaryDisplay(data) {
+        console.log('Updating summary display:', data);
+        
+        // Update total dibelanjakan bulan ini
+        if (data.total_dibelanjakan_bulan_ini !== undefined) {
+            const dibelanjakanInput = $('input[value*="Dibelanjakan"]').closest('.fw-semibold').find('input');
+            if (dibelanjakanInput.length) {
+                dibelanjakanInput.val('Rp ' + this.formatRupiah(data.total_dibelanjakan_bulan_ini));
+            }
+        }
+        
+        // Update total dibelanjakan sampai bulan ini
+        if (data.total_dibelanjakan_sampai_bulan_ini !== undefined) {
+            // Anda perlu menyesuaikan selector ini berdasarkan HTML Anda
+            const sampaiBulanInput = $('input[placeholder*="sampai"]').closest('.fw-semibold').find('input');
+            if (sampaiBulanInput.length) {
+                sampaiBulanInput.val('Rp ' + this.formatRupiah(data.total_dibelanjakan_sampai_bulan_ini));
+            }
+        }
+        
+        // Update saldo non tunai dan tunai
+        if (data.saldo) {
+            $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(data.saldo.non_tunai || 0));
+            $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(data.saldo.tunai || 0));
+            
+            // Update total dana tersedia
+            const totalDana = (data.saldo.non_tunai || 0) + (data.saldo.tunai || 0);
+            $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+        }
+        
+        // Update anggaran yang belum dibelanjakan
+        if (data.anggaran_belum_dibelanjakan !== undefined) {
+            const belumDibelanjakanInput = $('input[placeholder*="dianggarkan ulang"]').closest('.fw-semibold').find('input');
+            if (belumDibelanjakanInput.length) {
+                belumDibelanjakanInput.val('Rp ' + this.formatRupiah(data.anggaran_belum_dibelanjakan));
+            }
+        }
+    }
+
+    /**
+     * Execute form delete dengan AJAX (untuk fallback)
      */
     executeFormDelete(url) {
+        // Method ini sekarang hanya sebagai fallback jika AJAX gagal
+        console.warn('Using fallback form delete for:', url);
+        
+        // Buat form tersembunyi
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = url;
+        form.style.display = 'none';
 
         // Tambahkan CSRF token
         const csrfToken = document.createElement('input');
@@ -2255,7 +2385,7 @@ export default class BkuManager {
      * Handle hapus data setor
      */
     handleDeleteSetor(e) {
-        this.handleDeleteGeneric(e, 'setor tunai');
+        this.handleDeleteGeneric(e, 'setor');
     }
 
     /**
