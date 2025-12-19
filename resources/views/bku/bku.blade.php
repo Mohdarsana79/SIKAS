@@ -2,7 +2,7 @@
 @include('layouts.navbar')
 @include('layouts.sidebar')
 @section('content')
-<div class="container-fluid p-4" data-tahun="{{ $tahun }}" data-bulan="{{ $bulan }}" data-penganggaran-id="{{ $penganggaran->id ?? '' }}">
+<div class="container-fluid p-4" data-tahun="{{ $tahun }}" data-bulan="{{ $bulan }}" data-penganggaran-id="{{ $penganggaran->id ?? '' }}" data-is-closed="{{ $is_closed ? 'true' : 'false' }}" data-has-transactions="{{ $has_transactions ? 'true' : 'false' }}">
     @section('meta')
     <meta name="tahun" content="{{ $tahun }}">
     <meta name="bulan" content="{{ $bulan }}">
@@ -27,25 +27,26 @@
 
             <!-- Main Header -->
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h2 fw-semibold text-dark mb-1">BKU {{ $bulan }} {{$tahun}}</h1>
-                    <div class="d-flex align-items-center small text-muted">
-                        <span>BKSP REGULER {{$tahun}}</span>
-                        <span class="mx-2">|</span>
-                        @if($is_closed)
-                        <span class="badge bg-danger me-2">Terkunci</span>
-                        @if(!$has_transactions)
-                        <span class="badge bg-info">BKU Kosong - Terkunci</span>
-                        @endif
-                        @else
-                        <span class="badge bg-success me-2">Terbuka</span>
-                        @if(count($bkuData) > 0)
-                        <button href="#" class="btn btn-danger btn-sm ms-2" id="hapusSemuaBulan" data-bulan="{{ $bulan }}" data-tahun="{{ $tahun }}" data-jumlah-data="{{ count($bkuData) }}" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .55rem;">
-                            Hapus BKU
-                        </button>
-                        @endif
-                        @endif
-                    </div>
+                <div class="d-flex align-items-center small text-muted">
+                    <span>BKSP REGULER {{$tahun}}</span>
+                    <span class="mx-2">|</span>
+                    @if($is_closed)
+                    <span class="badge bg-danger me-2">Terkunci</span>
+                    @if(!$has_transactions)
+                    <span class="badge bg-info">BKU Kosong - Terkunci</span>
+                    @endif
+                    @else
+                    <span class="badge bg-success me-2">Terbuka</span>
+                    {{-- PERBAIKAN: Tampilkan tombol hapus jika BKU terbuka DAN ada data --}}
+                    @if(count($bkuData) > 0 && !$is_closed)
+                    <button href="#" class="btn btn-danger btn-sm ms-2" id="hapusSemuaBulan" data-bulan="{{ $bulan }}"
+                        data-tahun="{{ $tahun }}" data-jumlah-data="{{ count($bkuData) }}"
+                        data-is-closed="{{ $is_closed ? 'true' : 'false' }}"
+                        style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .55rem; display: inline-block !important;">
+                        Hapus BKU
+                    </button>
+                    @endif
+                    @endif
                 </div>
 
                 <!-- Action Buttons -->
@@ -146,7 +147,7 @@
             <div class="card anggaran-card">
                 <div class="card-body">
                     <h6 class="small fw-medium text-blue mt-3 mb-4">ANGGARAN DIBELANJAKAN SAMPAI BULAN INI</h6>
-
+                
                     <div class="row g-3">
                         <div class="col-md-4">
                             <div class="fw-semibold">
@@ -156,10 +157,9 @@
                                 </div>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text" id="inputGroup-sizing-sm">Rp</span>
-                                    <input type="text" class="form-control"
-                                        value="{{ number_format($anggaranBulanIni, 0, ',', '.') }}"
-                                        aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm"
-                                        disabled>
+                                    <input type="text" class="form-control" id="anggaranBisaDibelanjakan"
+                                        value="{{ number_format($anggaranBulanIni, 0, ',', '.') }}" aria-label="Sizing example input"
+                                        aria-describedby="inputGroup-sizing-sm" disabled>
                                 </div>
                             </div>
                         </div>
@@ -172,10 +172,9 @@
                                 </div>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text" id="inputGroup-sizing-sm">Rp</span>
-                                    <input type="text" class="form-control"
+                                    <input type="text" class="form-control" id="sudahDibelanjakan"
                                         value="{{ number_format($totalDibelanjakanBulanIni, 0, ',', '.') }}"
-                                        aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm"
-                                        disabled>
+                                        aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm" disabled>
                                 </div>
                             </div>
                         </div>
@@ -187,10 +186,9 @@
                                 </div>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text" id="inputGroup-sizing-sm">Rp</span>
-                                    <input type="text" class="form-control"
+                                    <input type="text" class="form-control" id="bisaDianggarkanUlang"
                                         value="{{ number_format($anggaranBelumDibelanjakan, 0, ',', '.') }}"
-                                        aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm"
-                                        disabled>
+                                        aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm" disabled>
                                 </div>
                             </div>
                         </div>

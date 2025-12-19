@@ -1650,6 +1650,7 @@ class BukuKasUmumController extends Controller
 
             $deletedCount = BukuKasUmum::where('penganggaran_id', $penganggaran->id)
                 ->whereMonth('tanggal_transaksi', $bulanAngka)
+                ->where('is_bunga_record', false)
                 ->delete();
 
             DB::commit();
@@ -3665,6 +3666,42 @@ class BukuKasUmumController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengambil data summary: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAnggaranBulanIni($penganggaran_id, $bulan)
+    {
+        try {
+            $total = $this->hitungAnggaranBulanIni($penganggaran_id, $bulan);
+            
+            return response()->json([
+                'success' => true,
+                'total_anggaran' => $total,
+                'formatted_total' => 'Rp ' . number_format($total, 0, ',', '.'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil anggaran bulan ini: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAnggaranBelumDibelanjakan($penganggaran_id, $bulan)
+    {
+        try {
+            $total = $this->hitungAnggaranBelumDibelanjakan($penganggaran_id, $bulan);
+            
+            return response()->json([
+                'success' => true,
+                'anggaran_belum_dibelanjakan' => $total,
+                'formatted_total' => 'Rp ' . number_format($total, 0, ',', '.'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil anggaran belum dibelanjakan: ' . $e->getMessage(),
             ], 500);
         }
     }

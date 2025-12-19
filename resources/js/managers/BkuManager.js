@@ -100,12 +100,6 @@ export default class BkuManager {
         // Load data tabel saat halaman pertama kali dibuka
         this.loadInitialTableData();
 
-        // Initial toggle status (jika ada data dari Blade)
-        this.toggleBkuStatus(
-            document.body.dataset.isClosed === 'true',
-            document.body.dataset.hasTransactions === 'true'
-        );
-
         
         // Inisialisasi modal edit bunga
         this.initEditBungaModalValues(); // Ganti nama method
@@ -840,7 +834,7 @@ export default class BkuManager {
     }
 
     /**
-     * Handle save button click
+     * Handle save button click untuk BKU
      */
     handleSaveClick() {
         if ($('#checkPajak').is(':checked')) {
@@ -868,6 +862,9 @@ export default class BkuManager {
         }
 
         const formData = this.collectFormData();
+        
+        if (!formData) return;
+        
         this.submitFormData(formData);
     }
 
@@ -1566,12 +1563,12 @@ export default class BkuManager {
     }
 
     /**
-     * Load data tabel saat halaman pertama kali dibuka
+     * Load data tabel saat halaman pertama kali dibuka - DIPERBAIKI
      */
     loadInitialTableData() {
         console.log('Loading initial table data...');
         
-        // Tampilkan loading spinner
+        // Tampilkan loading pada tabel
         $('#bkuTableBody').html(`
             <tr>
                 <td colspan="9" class="text-center py-5">
@@ -1596,8 +1593,21 @@ export default class BkuManager {
                     
                     // Update summary data
                     if (response.data && response.data.summary) {
-                        this.updateSummaryData(response.data.summary);
+                        this.updateSummaryDisplay(response.data.summary);
                     }
+                    
+                    // Tentukan status BKU dari response atau UI
+                    const isClosed = this.getBkuStatus();
+                    const hasTransactions = response.data && 
+                                        ((response.data.bku_data && response.data.bku_data.length > 0) ||
+                                        (response.data.penarikan_tunais && response.data.penarikan_tunais.length > 0) ||
+                                        (response.data.setor_tunais && response.data.setor_tunais.length > 0) ||
+                                        (response.data.penerimaan_danas && response.data.penerimaan_danas.length > 0));
+                    
+                    console.log('Determined status:', { isClosed, hasTransactions });
+                    
+                    // Update tombol hapus semua berdasarkan data aktual
+                    this.updateHapusSemuaButton();
                     
                     // Attach event listeners untuk row
                     this.attachBkuEventListeners();
@@ -1632,18 +1642,16 @@ export default class BkuManager {
             </tr>
         `);
     }
+    
     /**
-     * Kirim data ke server
+     * Kirim data BKU ke server
      */
     submitFormData(formData) {
-        Swal.fire({
-            title: 'Menyimpan Data...',
-            text: 'Mohon tunggu sebentar',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        const button = $('#saveBtn');
+        const originalText = button.html();
+        
+        button.prop('disabled', true)
+            .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...');
 
         $.ajax({
             url: '/bku/store',
@@ -1653,7 +1661,7 @@ export default class BkuManager {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: (response) => {
-                Swal.close();
+                button.prop('disabled', false).html(originalText);
 
                 if (response.success) {
                     Swal.fire({
@@ -1661,9 +1669,8 @@ export default class BkuManager {
                         title: 'Berhasil!',
                         text: response.message,
                         confirmButtonColor: '#0d6efd',
-                        showConfirmButton: true,
                         timer: 2000,
-                        timerProgressBar: true
+                        showConfirmButton: false
                     }).then(() => {
                         // Tutup modal
                         $('#transactionModal').modal('hide');
@@ -1671,8 +1678,8 @@ export default class BkuManager {
                         // Reset form modal
                         this.resetModalForm();
                         
-                        // Update tabel dan data lainnya tanpa reload
-                        this.updateTableAndData();
+                        // Update UI tanpa reload
+                        this.handleBkuSaved(response);
                     });
                 } else {
                     Swal.fire({
@@ -1684,7 +1691,8 @@ export default class BkuManager {
                 }
             },
             error: (xhr) => {
-                Swal.close();
+                button.prop('disabled', false).html(originalText);
+                
                 console.error('Error submitting form:', xhr);
 
                 let errorMessage = 'Terjadi kesalahan saat menyimpan data';
@@ -1850,8 +1858,11 @@ export default class BkuManager {
                     
                     // Update summary data jika ada
                     if (response.data && response.data.summary) {
-                        this.updateSummaryData(response.data.summary);
+                        this.updateSummaryDisplay(response.data.summary);
                     }
+                    
+                    // Update card anggaran
+                    this.updateAnggaranCardFromSummary();
                     
                     // Re-attach event listeners untuk row baru
                     this.attachBkuEventListeners();
@@ -1866,10 +1877,6 @@ export default class BkuManager {
                             <td colspan="9" class="text-center py-5 text-danger">
                                 <i class="bi bi-exclamation-triangle me-2"></i>
                                 Gagal memuat data: ${response.message || 'Unknown error'}
-                                <br>
-                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="window.location.reload()">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Halaman
-                                </button>
                             </td>
                         </tr>
                     `);
@@ -1890,10 +1897,6 @@ export default class BkuManager {
                             Gagal memperbarui data tabel.
                             <br>
                             <small class="text-muted">${error || 'Unknown error'}</small>
-                            <br>
-                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="window.location.reload()">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh Halaman
-                            </button>
                         </td>
                     </tr>
                 `);
@@ -2014,54 +2017,202 @@ export default class BkuManager {
     }
 
     /**
-     * Toggle status BKU (open/closed)
+     * Toggle status BKU (open/closed) dengan kontrol tombol hapus - DIPERBAIKI
      */
     toggleBkuStatus(isClosed, hasTransactions) {
-        $('#btnTambahTransaksi, #btnCari, #btnCetak, #btnTutupBku, #btnTarikTunai, #btnSetorTunai')
+        console.log('toggleBkuStatus called:', { isClosed, hasTransactions });
+        
+        // 1. Kontrol tombol utama
+        $('#btnTambahTransaksi, #btnTarikTunai, #btnSetorTunai, #btnTutupBku')
             .prop('disabled', isClosed);
         
-        // Hanya non-aktifkan hapus jika ada data dan terkunci
-        if (isClosed && hasTransactions) {
-            $('.btn-hapus-individual').addClass('disabled');
-            $('#hapusSemuaBulan').hide();
-        } else {
-            $('.btn-hapus-individual').removeClass('disabled');
-            if (hasTransactions) {
-                $('#hapusSemuaBulan').show();
+        // 2. Kontrol khusus tombol "Hapus BKU"
+        const hapusSemuaButton = $('#hapusSemuaBulan');
+        
+        if (hapusSemuaButton.length > 0) {
+            console.log('Found hapusSemuaButton, current state:', {
+                isClosed: isClosed,
+                hasTransactions: hasTransactions,
+                buttonData: hapusSemuaButton.data(),
+                isVisible: hapusSemuaButton.is(':visible')
+            });
+            
+            if (isClosed) {
+                // BKU TERTUTUP: Sembunyikan tombol hapus semua
+                console.log('BKU closed - hiding hapus semua button');
+                hapusSemuaButton.hide();
             } else {
-                $('#hapusSemuaBulan').hide();
+                // BKU TERBUKA: Tampilkan tombol jika ada transaksi
+                if (hasTransactions) {
+                    console.log('BKU open with transactions - showing hapus semua button');
+                    hapusSemuaButton.show();
+                } else {
+                    console.log('BKU open but no transactions - hiding hapus semua button');
+                    hapusSemuaButton.hide();
+                }
+            }
+        } else {
+            console.log('hapusSemuaButton not found');
+        }
+        
+        // 3. Kontrol tombol hapus individual
+        if (isClosed) {
+            $('.btn-hapus-individual, .btn-hapus-penarikan, .btn-hapus-penerimaan, .btn-hapus-setor')
+                .addClass('disabled')
+                .attr('disabled', true);
+        } else {
+            $('.btn-hapus-individual, .btn-hapus-penarikan, .btn-hapus-penerimaan, .btn-hapus-setor')
+                .removeClass('disabled')
+                .attr('disabled', false);
+        }
+    }
+
+    /**
+     * Update tombol hapus semua berdasarkan data terbaru - DIPERBAIKI
+     */
+    updateHapusSemuaButton() {
+        // Dapatkan status BKU dari berbagai sumber
+        const isClosed = this.getBkuStatus();
+        const bkuRows = $('#bkuTableBody .bku-row');
+        const hapusSemuaButton = $('#hapusSemuaBulan');
+        
+        console.log('updateHapusSemuaButton called:', {
+            isClosed,
+            bkuRowCount: bkuRows.length,
+            buttonExists: hapusSemuaButton.length > 0
+        });
+        
+        if (hapusSemuaButton.length > 0) {
+            if (isClosed) {
+                // BKU tertutup: sembunyikan tombol
+                console.log('BKU is closed - hiding button');
+                hapusSemuaButton.hide();
+            } else if (bkuRows.length > 0) {
+                // BKU terbuka dan ada data: tampilkan dan update jumlah
+                console.log('BKU open with data - showing button, count:', bkuRows.length);
+                hapusSemuaButton.show()
+                    .data('jumlah-data', bkuRows.length)
+                    .attr('data-jumlah-data', bkuRows.length);
+            } else {
+                // BKU terbuka tapi tidak ada data: sembunyikan
+                console.log('BKU open but no data - hiding button');
+                hapusSemuaButton.hide();
             }
         }
     }
 
     /**
-     * Handle hapus semua data bulan dengan AJAX (tanpa reload)
+     * Dapatkan status BKU dari berbagai sumber
      */
+    getBkuStatus() {
+        // 1. Coba dari meta tag
+        const metaIsClosed = document.querySelector('meta[name="is-closed"]')?.content;
+        if (metaIsClosed) {
+            return metaIsClosed === 'true';
+        }
+        
+        // 2. Coba dari data attribute container
+        const container = document.querySelector('[data-is-closed]');
+        if (container && container.dataset.isClosed) {
+            return container.dataset.isClosed === 'true';
+        }
+        
+        // 3. Coba dari badge status di UI
+        const closedBadge = $('.badge.bg-danger:contains("Terkunci")');
+        const openBadge = $('.badge.bg-success:contains("Terbuka")');
+        
+        if (closedBadge.length > 0) return true;
+        if (openBadge.length > 0) return false;
+        
+        // 4. Default: anggap terbuka
+        console.log('BKU status not found, defaulting to open');
+        return false;
+    }
+
+    /**
+    * Handle hapus semua data BKU (belanja saja) - DIPERBAIKI
+    */
     handleDeleteAllBulan(e) {
         e.preventDefault();
-        console.log('Hapus semua button clicked');
+        console.log('Hapus semua data BKU (belanja) button clicked');
 
         const button = $(e.currentTarget);
         const bulan = button.data('bulan');
         const tahun = button.data('tahun');
         const jumlahData = button.data('jumlah-data') || 0;
+        const isClosed = button.data('is-closed') === 'true';
+
+        console.log('Data:', { bulan, tahun, jumlahData, isClosed });
+
+        if (isClosed) {
+            Swal.fire({
+                title: 'BKU Terkunci!',
+                text: 'Tidak dapat menghapus data karena BKU sudah terkunci.',
+                icon: 'warning',
+                confirmButtonColor: '#0d6efd',
+            });
+            return;
+        }
+
+        // Hanya tampilkan data BKU (belanja) untuk dihapus
+        const bkuRows = $('#bkuTableBody .bku-row');
+        const bkuCount = bkuRows.length;
+
+        if (bkuCount === 0) {
+            Swal.fire({
+                title: 'Tidak Ada Data!',
+                text: 'Tidak ada data belanja (BKU) yang dapat dihapus.',
+                icon: 'info',
+                confirmButtonColor: '#0d6efd',
+            });
+            return;
+        }
+
+        // Hitung total belanja yang akan dihapus untuk update saldo
+        let totalBelanja = 0;
+        bkuRows.each((index, row) => {
+            const belanjaText = $(row).find('td:nth-child(7)').text(); // Kolom "Dibelanjakan"
+            const belanjaAmount = this.parseRupiah(belanjaText);
+            totalBelanja += belanjaAmount;
+        });
+
+        // Tentukan jenis transaksi (kebanyakan non-tunai, tapi perlu cek per row)
+        let tunaiCount = 0;
+        let nonTunaiCount = 0;
+        
+        bkuRows.each((index, row) => {
+            const jenisText = $(row).find('td:nth-child(5)').text().toLowerCase(); // Kolom "Jenis Transaksi"
+            if (jenisText.includes('tunai')) {
+                tunaiCount++;
+            } else {
+                nonTunaiCount++;
+            }
+        });
 
         Swal.fire({
-            title: 'Apakah Anda yakin?',
+            title: 'Hapus Semua Data Belanja?',
             html: `<div class="text-start">
-                <p>Anda akan menghapus <strong>SEMUA</strong> data BKU untuk:</p>
+                <p>Anda akan menghapus <strong>SEMUA</strong> data belanja (BKU) untuk:</p>
                 <ul>
                     <li>Bulan: <strong>${bulan}</strong></li>
                     <li>Tahun: <strong>${tahun}</strong></li>
-                    <li>Jumlah data: <strong>${jumlahData} transaksi</strong></li>
+                    <li>Jumlah data: <strong>${bkuCount} transaksi belanja</strong></li>
+                    <li>Total belanja: <strong>Rp ${this.formatRupiah(totalBelanja)}</strong></li>
+                    <li>Transaksi tunai: <strong>${tunaiCount}</strong></li>
+                    <li>Transaksi non-tunai: <strong>${nonTunaiCount}</strong></li>
                 </ul>
+                <p class="text-info mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Catatan:</strong> Hanya data belanja (BKU) yang akan dihapus.<br>
+                    Data penarikan dan setor tunai tidak akan terhapus.
+                </p>
                 <p class="text-danger mt-3"><strong>Peringatan:</strong> Tindakan ini tidak dapat dibatalkan!</p>
             </div>`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Hapus Semua!',
+            confirmButtonText: 'Ya, Hapus Semua Belanja!',
             cancelButtonText: 'Batal',
             reverseButtons: true,
             customClass: {
@@ -2072,6 +2223,9 @@ export default class BkuManager {
             showLoaderOnConfirm: true,
             preConfirm: () => {
                 return new Promise((resolve, reject) => {
+                    console.log('Sending AJAX request to delete BKU data...');
+                    
+                    // Gunakan route yang spesifik untuk menghapus BKU saja
                     const url = `/bku/${tahun}/${bulan}/all`;
                     
                     $.ajax({
@@ -2082,11 +2236,17 @@ export default class BkuManager {
                             'Accept': 'application/json'
                         },
                         success: function(response) {
+                            console.log('AJAX success:', response);
+                            // Tambahkan data total belanja ke response
+                            response.total_belanja = totalBelanja;
+                            response.tunai_count = tunaiCount;
+                            response.non_tunai_count = nonTunaiCount;
                             resolve(response);
                         },
                         error: function(xhr, status, error) {
+                            console.error('AJAX error:', xhr, status, error);
                             let errorMessage = 'Terjadi kesalahan server';
-                            
+                    
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             } else if (xhr.status === 404) {
@@ -2105,54 +2265,160 @@ export default class BkuManager {
             allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                // Kosongkan tabel
-                $('#bkuTableBody').html(`
-                    <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
-                            Tidak ada data transaksi
-                        </td>
-                    </tr>
-                `);
+                console.log('Delete confirmed, result:', result);
                 
-                // Update summary
-                this.updateSummaryAfterDelete();
+                // Hapus baris BKU dari tabel dengan animasi
+                $('#bkuTableBody .bku-row').each((index, row) => {
+                    $(row).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                });
                 
-                // Sembunyikan tombol hapus semua
-                $('#hapusSemuaBulan').hide();
-                
-                // Update status button jika diperlukan
-                if ($('#btnTutupBku').length) {
-                    $('#btnTutupBku').prop('disabled', false);
-                }
+                // Update UI setelah semua BKU dihapus
+                this.handleAfterAllBkuDeleted(result.value);
                 
                 Swal.fire({
                     title: 'Berhasil!',
                     html: `<div class="text-start">
                         <p>${result.value.message}</p>
-                        <p class="text-success">Jumlah data yang dihapus: <strong>${result.value.deleted_count}</strong></p>
+                        <div class="mt-2 p-2 bg-success bg-opacity-10 rounded">
+                            <p class="text-success mb-1"><strong>Ringkasan Penghapusan:</strong></p>
+                            <small class="text-muted">Jumlah data yang dihapus: <strong>${result.value.deleted_count}</strong></small><br>
+                            <small class="text-muted">Total belanja yang dihapus: <strong>Rp ${this.formatRupiah(result.value.total_belanja || 0)}</strong></small><br>
+                            <small class="text-muted">Transaksi tunai: <strong>${result.value.tunai_count || 0}</strong></small><br>
+                            <small class="text-muted">Transaksi non-tunai: <strong>${result.value.non_tunai_count || 0}</strong></small>
+                        </div>
                     </div>`,
                     icon: 'success',
                     confirmButtonColor: '#198754',
                     confirmButtonText: 'OK',
-                    timer: 2000,
-                    showConfirmButton: false
+                    customClass: {
+                        confirmButton: 'btn btn-success'
+                    },
+                    buttonsStyling: false
+                }).then(() => {
+                    // Tidak perlu reload halaman
+                    console.log('All BKU data deleted successfully');
                 });
+            } else {
+                console.log('Delete cancelled');
             }
         }).catch((error) => {
+            console.error('SweetAlert error:', error);
             Swal.fire({
                 title: 'Error!',
                 text: error.message,
                 icon: 'error',
                 confirmButtonColor: '#d33',
-                confirmButtonText: 'OK'
+                confirmButtonText: 'OK',
+                customClass: {
+                    confirmButton: 'btn btn-danger'
+                },
+                buttonsStyling: false
             });
         });
     }
 
     /**
-     * Handle hapus data individual (generik) dengan AJAX
-     */
-    handleDeleteGeneric(e, type, refreshType = 'full') {
+    * Handle setelah semua data BKU dihapus
+    */
+    async handleAfterAllBkuDeleted(response) {
+        console.log('Handling after all BKU deleted:', response);
+        
+        // 1. Update saldo (kembalikan saldo karena belanja dihapus)
+        this.updateSaldoAfterAllBkuDeleted(response);
+        
+        // 2. Update card anggaran
+        await this.updateAnggaranCardFromSummary();
+        
+        // 3. Update tombol hapus semua
+        this.updateHapusSemuaButton();
+        
+        // 4. Update summary lainnya
+        await this.updateSummaryAfterDelete();
+        
+        // 5. Cek apakah tabel kosong (hanya tersisa penarikan/setor tunai)
+        this.checkTableEmptyAfterBkuDelete();
+    }
+
+    /**
+    * Update saldo setelah semua BKU dihapus
+    */
+    updateSaldoAfterAllBkuDeleted(response) {
+        try {
+            const totalBelanja = response.total_belanja || 0;
+            const tunaiCount = response.tunai_count || 0;
+            const nonTunaiCount = response.non_tunai_count || 0;
+            
+            console.log('Updating saldo after all BKU deleted:', {
+                totalBelanja,
+                tunaiCount,
+                nonTunaiCount
+            });
+            
+            // Asumsi: untuk penghapusan massal, kita tidak tahu perbandingan tepatnya
+            // Maka update kedua saldo secara proporsional
+            
+            if (totalBelanja > 0) {
+                // Jika ada transaksi tunai, saldo tunai bertambah
+                if (tunaiCount > 0) {
+                    const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                    // Asumsi rata-rata per transaksi
+                    const tunaiPerTransaction = totalBelanja / (tunaiCount + nonTunaiCount);
+                    const tunaiIncrease = tunaiPerTransaction * tunaiCount;
+                    const newTunai = currentTunai + tunaiIncrease;
+                    $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+                }
+                
+                // Jika ada transaksi non-tunai, saldo non tunai bertambah
+                if (nonTunaiCount > 0) {
+                    const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                    // Asumsi rata-rata per transaksi
+                    const nonTunaiPerTransaction = totalBelanja / (tunaiCount + nonTunaiCount);
+                    const nonTunaiIncrease = nonTunaiPerTransaction * nonTunaiCount;
+                    const newNonTunai = currentNonTunai + nonTunaiIncrease;
+                    $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+                }
+                
+                // Update total dana tersedia
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTotal = currentTunai + currentNonTunai;
+                $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(newTotal));
+            }
+            
+            console.log('Saldo updated after all BKU deleted');
+            
+        } catch (error) {
+            console.error('Error updating saldo after all BKU deleted:', error);
+        }
+    }
+
+    /**
+    * Cek apakah tabel kosong setelah hapus BKU
+    */
+    checkTableEmptyAfterBkuDelete() {
+        const remainingRows = $('#bkuTableBody tr').not('.bku-row');
+        
+        if (remainingRows.length === 0) {
+            // Hanya tampilkan jika benar-benar tidak ada data sama sekali
+            $('#bkuTableBody').html(`
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        Tidak ada data transaksi
+                    </td>
+                </tr>
+            `);
+        } else {
+            // Masih ada data penarikan/setor tunai
+            console.log('Remaining non-BKU rows:', remainingRows.length);
+        }
+    }
+
+    /**
+    * Handle hapus data generik (untuk penarikan, setor, penerimaan)
+    */
+    handleDeleteGeneric(e, type) {
         e.preventDefault();
         
         const button = $(e.currentTarget);
@@ -2161,7 +2427,6 @@ export default class BkuManager {
         const row = button.closest('tr');
         
         const typeMap = {
-            'individual': 'transaksi BKU',
             'penarikan': 'penarikan tunai',
             'penerimaan': 'penerimaan dana',
             'saldo-awal': 'saldo awal',
@@ -2219,26 +2484,27 @@ export default class BkuManager {
             allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed) {
-                // Hapus baris dari tabel
-                if (row.length) {
-                    row.fadeOut(300, function() {
-                        $(this).remove();
-                        
-                        // Cek apakah tabel kosong
-                        if ($('#bkuTableBody tr').length === 0) {
-                            $('#bkuTableBody').html(`
-                                <tr>
-                                    <td colspan="9" class="text-center py-5 text-muted">
-                                        Tidak ada data transaksi
-                                    </td>
-                                </tr>
-                            `);
-                        }
-                    });
-                }
+                // Simpan data untuk update saldo
+                const rowData = this.getRowDataForUpdate(row, type);
                 
-                // Update data summary tanpa reload
-                this.updateSummaryAfterDelete();
+                // Hapus baris dari tabel
+                row.fadeOut(300, () => {
+                    row.remove();
+                    
+                    // Update UI berdasarkan jenis data yang dihapus
+                    this.handleAfterGenericDelete(type, rowData);
+                    
+                    // Cek apakah tabel kosong
+                    if ($('#bkuTableBody tr').length === 0) {
+                        $('#bkuTableBody').html(`
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    Tidak ada data transaksi
+                                </td>
+                            </tr>
+                        `);
+                    }
+                });
                 
                 Swal.fire({
                     title: 'Berhasil!',
@@ -2258,6 +2524,124 @@ export default class BkuManager {
                 confirmButtonText: 'OK'
             });
         });
+    }
+
+    /**
+    * Helper untuk mendapatkan data row berdasarkan jenis
+    */
+    getRowDataForUpdate(row, type) {
+        switch(type) {
+            case 'penarikan':
+                // Untuk penarikan: jumlah penarikan
+                const penarikanText = row.find('td:nth-child(3)').text();
+                const jumlahPenarikan = this.extractAmountFromUraian(penarikanText);
+                return { jumlah: jumlahPenarikan, type: 'penarikan' };
+                
+            case 'setor':
+                // Untuk setor: jumlah setor
+                const setorText = row.find('td:nth-child(3)').text();
+                const jumlahSetor = this.extractAmountFromUraian(setorText);
+                return { jumlah: jumlahSetor, type: 'setor' };
+                
+            case 'penerimaan':
+            case 'saldo-awal':
+                // Untuk penerimaan/saldo awal
+                const penerimaanText = row.find('td:nth-child(3)').text();
+                const jumlahPenerimaan = this.extractAmountFromUraian(penerimaanText);
+                return { jumlah: jumlahPenerimaan, type: type };
+                
+            default:
+                return { jumlah: 0, type: type };
+        }
+    }
+
+    /**
+    * Extract amount dari teks uraian
+    */
+    extractAmountFromUraian(uraianText) {
+        // Mencari pola "Rp X.XXX.XXX" atau "Rp X,XXX,XXX"
+        const match = uraianText.match(/Rp\s*([\d.,]+)/);
+        if (match && match[1]) {
+            return this.parseRupiah(match[1]);
+        }
+        return 0;
+    }
+
+    /**
+    * Handle setelah data generik dihapus
+    */
+    async handleAfterGenericDelete(type, rowData) {
+        console.log('Handling after generic delete:', { type, rowData });
+        
+        // 1. Update saldo berdasarkan jenis data
+        this.updateSaldoAfterGenericDelete(type, rowData.jumlah);
+        
+        // 2. Update card anggaran (jika perlu)
+        if (type === 'penarikan' || type === 'setor') {
+            // Untuk penarikan/setor, anggaran tidak berubah
+            // Tapi kita tetap update untuk konsistensi
+            await this.updateAnggaranCardFromSummary();
+        }
+        
+        // 3. Update summary data lainnya
+        await this.updateSummaryAfterDelete();
+    }
+
+    /**
+    * Update saldo setelah data generik dihapus
+    */
+    updateSaldoAfterGenericDelete(type, jumlah) {
+        try {
+            console.log('Updating saldo after generic delete:', { type, jumlah });
+            
+            if (type === 'penarikan') {
+                // Penarikan dihapus: saldo non tunai bertambah, saldo tunai berkurang
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai + jumlah;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+                
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTunai = currentTunai - jumlah;
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newTunai)));
+                
+            } else if (type === 'setor') {
+                // Setor dihapus: saldo tunai bertambah, saldo non tunai berkurang
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTunai = currentTunai + jumlah;
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+                
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai - jumlah;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newNonTunai)));
+                
+            } else if (type === 'penerimaan' || type === 'saldo-awal') {
+                // Penerimaan/saldo awal dihapus: total dana tersedia berkurang
+                // Untuk penerimaan dana, kita perlu tahu apakah tunai atau non-tunai
+                // Asumsi: penerimaan dana ke non-tunai
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai - jumlah;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newNonTunai)));
+            }
+            
+            // Update total dana tersedia
+            const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const newTotal = currentTunai + currentNonTunai;
+            $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(newTotal));
+            
+            console.log('Saldo updated after generic delete');
+            
+        } catch (error) {
+            console.error('Error updating saldo after generic delete:', error);
+        }
+    }
+
+    /**
+    * Parse rupiah ke angka
+    */
+    parseRupiah(rupiahString) {
+        if (!rupiahString) return 0;
+        return parseInt(rupiahString.toString().replace(/[^\d]/g, '')) || 0;
     }
 
     /**
@@ -2354,10 +2738,181 @@ export default class BkuManager {
     }
 
     /**
-     * Handle hapus data individual
-     */
+    * Handle hapus data BKU individual
+    */
     handleDeleteIndividual(e) {
-        this.handleDeleteGeneric(e, 'individual');
+        e.preventDefault();
+        
+        const button = $(e.currentTarget);
+        const url = button.attr('href');
+        const id = button.data('id');
+        const row = button.closest('tr');
+        const totalBelanja = this.getRowTotalBelanja(row);
+
+        Swal.fire({
+            title: 'Hapus transaksi?',
+            html: `<div class="text-start">
+                <p>Apakah Anda yakin ingin menghapus transaksi ini?</p>
+                <div class="mt-2 p-2 bg-light rounded">
+                    <small class="text-muted"><strong>ID Transaksi:</strong> ${row.find('td:first').text()}</small><br>
+                    <small class="text-muted"><strong>Tanggal:</strong> ${row.find('td:nth-child(2)').text()}</small><br>
+                    <small class="text-muted"><strong>Jumlah Belanja:</strong> ${row.find('td:nth-child(7)').text()}</small>
+                </div>
+                <p class="text-danger mt-3"><strong>Peringatan:</strong> Tindakan ini tidak dapat dibatalkan!</p>
+            </div>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            customClass: {
+                confirmButton: 'btn btn-danger me-2',
+                cancelButton: 'btn btn-secondary me-2'
+            },
+            buttonsStyling: false,
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: url,
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'Accept': 'application/json'
+                        },
+                        success: function(response) {
+                            resolve(response);
+                        },
+                        error: function(xhr, status, error) {
+                            let errorMessage = 'Terjadi kesalahan server';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.status === 404) {
+                                errorMessage = 'Data tidak ditemukan';
+                            } else if (xhr.status === 422) {
+                                errorMessage = 'Terjadi kesalahan validasi';
+                            } else if (xhr.status === 500) {
+                                errorMessage = 'Error server internal';
+                            }
+                            
+                            reject(new Error(errorMessage));
+                        }
+                    });
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Simpan data sebelum dihapus untuk update saldo
+                const belanjaAmount = this.parseRupiah(row.find('td:nth-child(7)').text());
+                const jenisTransaksi = this.getJenisTransaksiFromRow(row);
+                
+                // Hapus baris dari tabel dengan animasi
+                row.fadeOut(300, () => {
+                    row.remove();
+                    
+                    // Update UI setelah penghapusan
+                    this.handleAfterBkuDelete(belanjaAmount, jenisTransaksi);
+                    
+                    // Cek apakah tabel kosong
+                    if ($('#bkuTableBody tr').length === 0) {
+                        $('#bkuTableBody').html(`
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    Tidak ada data transaksi
+                                </td>
+                            </tr>
+                        `);
+                    }
+                });
+                
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: result.value.message || 'Transaksi berhasil dihapus',
+                    icon: 'success',
+                    confirmButtonColor: '#198754',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        }).catch((error) => {
+            Swal.fire({
+                title: 'Error!',
+                text: error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'OK'
+            });
+        });
+    }
+
+    /**
+    * Helper untuk mendapatkan total belanja dari row
+    */
+    getRowTotalBelanja(row) {
+        const belanjaText = row.find('td:nth-child(7)').text();
+        return this.parseRupiah(belanjaText);
+    }
+
+    /**
+    * Helper untuk mendapatkan jenis transaksi dari row
+    */
+    getJenisTransaksiFromRow(row) {
+        const jenisText = row.find('td:nth-child(5)').text().toLowerCase();
+        return jenisText.includes('tunai') ? 'tunai' : 'non-tunai';
+    }
+
+    /**
+    * Handle setelah BKU dihapus
+    */
+    async handleAfterBkuDelete(belanjaAmount, jenisTransaksi) {
+        console.log('Handling after BKU delete:', { belanjaAmount, jenisTransaksi });
+        
+        // 1. Update saldo
+        this.updateSaldoAfterBkuDelete(belanjaAmount, jenisTransaksi);
+        
+        // 2. Update card anggaran
+        await this.updateAnggaranCardFromSummary();
+        
+        // 3. Update summary data lainnya
+        await this.updateSummaryAfterDelete();
+        
+        // 4. Update semua UI untuk konsistensi
+        await this.updateAllUIAfterChange();
+    }
+
+    /**
+    * Update saldo setelah BKU dihapus
+    */
+    updateSaldoAfterBkuDelete(belanjaAmount, jenisTransaksi) {
+        try {
+            console.log('Updating saldo after BKU delete:', { belanjaAmount, jenisTransaksi });
+            
+            if (jenisTransaksi === 'tunai') {
+                // Untuk transaksi tunai: saldo tunai bertambah (karena belanja dihapus)
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTunai = currentTunai + belanjaAmount;
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+            } else {
+                // Untuk transaksi non-tunai: saldo non tunai bertambah
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai + belanjaAmount;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+            }
+            
+            // Update total dana tersedia (bertambah karena belanja dihapus)
+            const currentTotal = parseFloat($('h4.fw-semibold.text-dark').text().replace(/[^\d]/g, '')) || 0;
+            const newTotal = currentTotal + belanjaAmount;
+            $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(newTotal));
+            
+            console.log('Saldo updated after BKU delete');
+            
+        } catch (error) {
+            console.error('Error updating saldo after BKU delete:', error);
+        }
     }
 
     /**
@@ -3183,7 +3738,7 @@ export default class BkuManager {
         console.log('Attaching tarik tunai events...');
         
         // Event untuk simpan penarikan tunai
-        $(document).on('click', '#btnSimpanTarik', this.handleSimpanTarikTunai);
+        $(document).on('click', '#btnSimpanTarik', this.handleSimpanTarikTunai.bind(this));
         
         // Event untuk format input rupiah
         $(document).on('blur', '#jumlah_penarikan', this.formatRupiahInput.bind(this));
@@ -3194,6 +3749,58 @@ export default class BkuManager {
         
         // Event saat modal penarikan tunai dibuka
         $('#tarikTunai').on('show.bs.modal', this.handleTarikTunaiModalShow.bind(this));
+        
+        // Event saat modal penarikan tunai ditutup
+        $('#tarikTunai').on('hidden.bs.modal', () => {
+            $('#formTarikTunai')[0].reset();
+            this.resetTarikTunaiErrors();
+        });
+        
+        // Real-time validation untuk penarikan tunai
+        this.attachTarikTunaiRealTimeValidation();
+    }
+
+    /**
+     * Real-time validation untuk penarikan tunai
+     */
+    attachTarikTunaiRealTimeValidation() {
+        $(document).on('input', '#jumlah_penarikan', (e) => {
+            const input = $(e.target);
+            const value = input.val().replace(/[^\d]/g, '');
+            const maxAmount = parseFloat(input.attr('data-max')) || 0;
+            const jumlahNum = parseFloat(value) || 0;
+            
+            // Reset error
+            input.removeClass('is-invalid');
+            $('#jumlah_penarikan_error').text('');
+            
+            // Validasi real-time
+            if (value && jumlahNum > maxAmount) {
+                input.addClass('is-invalid');
+                $('#jumlah_penarikan_error').text(`Melebihi maksimal (Rp ${this.formatRupiah(maxAmount)})`);
+                
+                // Update tampilan jumlah maksimal dengan warna merah
+                const maxInfo = input.next('small');
+                if (maxInfo.length) {
+                    maxInfo.addClass('max-limit-exceeded')
+                        .html(`<i class="bi bi-exclamation-triangle-fill"></i> Maksimal: Rp ${this.formatRupiah(maxAmount)}`);
+                }
+            } else {
+                // Reset tampilan jumlah maksimal
+                const maxInfo = input.next('small');
+                if (maxInfo.length) {
+                    maxInfo.removeClass('max-limit-exceeded')
+                        .text(`Maksimal: Rp ${this.formatRupiah(maxAmount)}`);
+                }
+            }
+            
+            // Format sebagai rupiah
+            if (value) {
+                setTimeout(() => {
+                    input.val(this.formatRupiah(jumlahNum));
+                }, 100);
+            }
+        });
     }
 
     /**
@@ -3203,6 +3810,7 @@ export default class BkuManager {
         console.log('Modal penarikan tunai dibuka');
         
         // Reset form
+        this.resetTarikTunaiErrors();
         $('#formTarikTunai')[0].reset();
         
         // Set tanggal default ke hari ini (dalam range bulan)
@@ -3219,10 +3827,23 @@ export default class BkuManager {
         
         $('#tanggal_penarikan').val(defaultDate);
         
-        // Update maksimal penarikan
+        // Update saldo non tunai dari display saat ini
         const saldoNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
         $('#jumlah_penarikan').attr('data-max', saldoNonTunai);
-        $('#jumlah_penarikan').next('small').text(`Maksimal: Rp ${this.formatRupiah(saldoNonTunai)}`);
+        
+        // Update text maksimal
+        const maxInfo = $('#jumlah_penarikan').next('small');
+        if (maxInfo.length) {
+            maxInfo.text(`Maksimal: Rp ${this.formatRupiah(saldoNonTunai)}`);
+        }
+    }
+
+    /**
+     * Reset error penarikan tunai
+     */
+    resetTarikTunaiErrors() {
+        $('#tanggal_penarikan, #jumlah_penarikan').removeClass('is-invalid');
+        $('.invalid-feedback').remove();
     }
 
     /**
@@ -3248,15 +3869,19 @@ export default class BkuManager {
     }
 
     /**
-     * Handle simpan penarikan tunai
-     */
+    * Handle simpan penarikan tunai
+    */
     handleSimpanTarikTunai(e) {
         e.preventDefault();
         
-        console.log('Simpan penarikan tunai clicked');
+        console.log('=== SIMPAN PENARIKAN TUNAI ===');
+        
+        // Reset error terlebih dahulu
+        this.resetTarikTunaiErrors();
         
         // Validasi form
         if (!this.validateTarikTunaiForm()) {
+            console.log('Form validation failed');
             return;
         }
         
@@ -3274,68 +3899,134 @@ export default class BkuManager {
     }
 
     /**
-     * Validasi form penarikan tunai
-     */
+    * Validasi form penarikan tunai
+    */
     validateTarikTunaiForm() {
+        console.log('=== VALIDASI PENARIKAN TUNAI ===');
+        
         const tanggal = $('#tanggal_penarikan').val();
-        const jumlah = $('#jumlah_penarikan').val().replace(/[^\d]/g, '');
-        const maxAmount = parseFloat($('#jumlah_penarikan').attr('data-max')) || 0;
+        const jumlahInput = $('#jumlah_penarikan');
+        const jumlahText = jumlahInput.val();
+        const jumlah = jumlahText.replace(/[^\d]/g, '');
+        
+        console.log('Data form:', { tanggal, jumlahText, jumlah });
         
         let isValid = true;
+        let errorMessages = [];
         
-        // Reset error
-        $('.invalid-feedback').remove();
-        $('.is-invalid').removeClass('is-invalid');
+        // Reset semua error
+        this.resetTarikTunaiErrors();
         
-        // Validasi tanggal
+        // 1. Validasi tanggal
         if (!tanggal) {
-            $('#tanggal_penarikan').addClass('is-invalid')
-                .after('<div class="invalid-feedback">Tanggal penarikan wajib diisi</div>');
+            errorMessages.push('Tanggal penarikan wajib diisi');
+            $('#tanggal_penarikan').addClass('is-invalid');
+            $('#tanggal_penarikan_error').text('Tanggal penarikan wajib diisi');
             isValid = false;
+        } else {
+            // Validasi tanggal dalam range bulan
+            const dateRange = this.getDateRangeForMonth(this.bulan, this.tahun);
+            const selectedDate = new Date(tanggal);
+            const minDate = new Date(dateRange.min);
+            const maxDate = new Date(dateRange.max);
+            
+            if (selectedDate < minDate || selectedDate > maxDate) {
+                errorMessages.push(`Tanggal harus antara ${this.formatDateToDisplay(minDate)} dan ${this.formatDateToDisplay(maxDate)}`);
+                $('#tanggal_penarikan').addClass('is-invalid');
+                $('#tanggal_penarikan_error').text(
+                    `Tanggal harus antara ${minDate.toLocaleDateString('id-ID')} dan ${maxDate.toLocaleDateString('id-ID')}`
+                );
+                isValid = false;
+            }
         }
         
-        // Validasi jumlah
+        // 2. Validasi jumlah
         if (!jumlah) {
-            $('#jumlah_penarikan').addClass('is-invalid')
-                .after('<div class="invalid-feedback">Jumlah penarikan wajib diisi</div>');
+            errorMessages.push('Jumlah penarikan wajib diisi');
+            jumlahInput.addClass('is-invalid');
+            $('#jumlah_penarikan_error').text('Jumlah penarikan wajib diisi');
             isValid = false;
-        } else if (parseFloat(jumlah) <= 0) {
-            $('#jumlah_penarikan').addClass('is-invalid')
-                .after('<div class="invalid-feedback">Jumlah penarikan harus lebih dari 0</div>');
-            isValid = false;
-        } else if (parseFloat(jumlah) > maxAmount) {
-            $('#jumlah_penarikan').addClass('is-invalid')
-                .after(`<div class="invalid-feedback">Jumlah melebihi saldo non tunai (Rp ${this.formatRupiah(maxAmount)})</div>`);
-            isValid = false;
+        } else {
+            const jumlahNum = parseFloat(jumlah);
+            const maxAmount = parseFloat(jumlahInput.attr('data-max')) || 0;
+            
+            console.log('Jumlah validasi:', { 
+                jumlahNum, 
+                maxAmount, 
+                lebihBesar: jumlahNum > maxAmount 
+            });
+            
+            if (isNaN(jumlahNum) || jumlahNum <= 0) {
+                errorMessages.push('Jumlah penarikan harus lebih dari 0');
+                jumlahInput.addClass('is-invalid');
+                $('#jumlah_penarikan_error').text('Jumlah penarikan harus lebih dari 0');
+                isValid = false;
+            } else if (maxAmount > 0 && jumlahNum > maxAmount) {
+                errorMessages.push(`Jumlah penarikan (Rp ${this.formatRupiah(jumlahNum)}) melebihi saldo non tunai (Rp ${this.formatRupiah(maxAmount)})`);
+                jumlahInput.addClass('is-invalid');
+                $('#jumlah_penarikan_error').text(`Melebihi saldo non tunai (Rp ${this.formatRupiah(maxAmount)})`);
+                isValid = false;
+            }
         }
         
+        // Tampilkan semua error jika ada
+        if (errorMessages.length > 0) {
+            console.log('Validation errors:', errorMessages);
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: '<div class="text-start"><p>Perbaiki error berikut:</p><ul class="mb-0">' + 
+                    errorMessages.map(msg => `<li>${msg}</li>`).join('') + 
+                    '</ul></div>',
+                confirmButtonColor: '#0d6efd',
+            });
+        }
+        
+        console.log('Validation result:', isValid);
         return isValid;
     }
 
     /**
-     * Kumpulkan data form penarikan tunai
-     */
+    * Kumpulkan data form penarikan tunai
+    */
     collectTarikTunaiFormData() {
-        const penganggaranId = document.querySelector('meta[name="penganggaran-id"]')?.content || 
-                              document.querySelector('input[name="penganggaran_id"]')?.value;
+        const penganggaranId = this.getPenganggaranId();
+        
+        if (!penganggaranId) {
+            Swal.fire({
+                title: 'Error!',
+                text: 'Data penganggaran tidak ditemukan. Silakan refresh halaman.',
+                icon: 'error'
+            });
+            return null;
+        }
+        
+        console.log('Collecting penarikan form data, penganggaran_id:', penganggaranId);
         
         return {
             penganggaran_id: penganggaranId,
             tanggal_penarikan: $('#tanggal_penarikan').val(),
             jumlah_penarikan: $('#jumlah_penarikan').val().replace(/[^\d]/g, ''),
-            _token: $('meta[name="csrf-token"]').attr('content')
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            bulan: this.bulan,
+            tahun: this.tahun
         };
     }
 
     /**
-     * Kirim form penarikan tunai ke server
-     */
+    * Kirim form penarikan tunai ke server
+    */
     submitTarikTunaiForm(formData, button, originalText) {
+        console.log('Submitting penarikan tunai form:', formData);
+        
         $.ajax({
             url: '/bku/penarikan-tunai',
             method: 'POST',
             data: formData,
             success: (response) => {
+                console.log('Response received:', response);
+                
                 // Reset button
                 button.prop('disabled', false).html(originalText);
                 
@@ -3344,48 +4035,281 @@ export default class BkuManager {
                         title: 'Berhasil!',
                         text: response.message,
                         icon: 'success',
-                        confirmButtonColor: '#198754'
+                        confirmButtonColor: '#198754',
+                        showConfirmButton: true,
+                        timer: 2000,
+                        timerProgressBar: true
                     }).then(() => {
                         // Tutup modal
                         $('#tarikTunai').modal('hide');
                         
-                        // Reload halaman untuk update data
-                        location.reload();
+                        // Reset form
+                        $('#formTarikTunai')[0].reset();
+                        this.resetTarikTunaiErrors();
+                        
+                        // Update tabel dan data tanpa reload
+                        this.handlePenarikanTunaiSaved(response);
                     });
                 } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: response.message,
+                        text: response.message || 'Gagal menyimpan penarikan tunai',
                         icon: 'error',
-                        confirmButtonColor: '#d33'
+                        confirmButtonColor: '#d33',
                     });
                 }
             },
-            error: (xhr) => {
+            error: (xhr, status, error) => {
+                console.error('Error submitting penarikan tunai:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText
+                });
+                
                 // Reset button
                 button.prop('disabled', false).html(originalText);
                 
-                let errorMessage = 'Terjadi kesalahan saat menyimpan data';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    // Tampilkan error validasi
-                    const errors = xhr.responseJSON.errors;
-                    Object.keys(errors).forEach(field => {
-                        $(`#${field}`).addClass('is-invalid')
-                            .after(`<div class="invalid-feedback">${errors[field][0]}</div>`);
-                    });
-                    errorMessage = 'Terjadi kesalahan validasi';
+                let errorMessage = 'Terjadi kesalahan saat menyimpan data penarikan tunai';
+                
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    
+                    // Tampilkan error validasi field-by-field
+                    if (xhr.responseJSON.errors) {
+                        const errors = xhr.responseJSON.errors;
+                        Object.keys(errors).forEach((field) => {
+                            const fieldId = field === 'jumlah_penarikan' ? 'jumlah_penarikan' : field;
+                            const errorElement = $(`#${fieldId}_error`);
+                            
+                            if (errorElement.length) {
+                                errorElement.text(errors[field][0]);
+                            } else {
+                                $(`#${fieldId}`).addClass('is-invalid')
+                                    .after(`<div class="invalid-feedback" id="${fieldId}_error">${errors[field][0]}</div>`);
+                            }
+                        });
+                        
+                        errorMessage = 'Terjadi kesalahan validasi data';
+                    }
                 }
                 
                 Swal.fire({
                     title: 'Error!',
                     text: errorMessage,
                     icon: 'error',
-                    confirmButtonColor: '#d33'
+                    confirmButtonColor: '#d33',
                 });
             }
         });
+    }
+
+    /**
+    * Handle setelah penarikan tunai disimpan
+    */
+    handlePenarikanTunaiSaved(response) {
+        console.log('Handling penarikan tunai saved:', response);
+        
+        // Update saldo display secara manual
+        const jumlahPenarikan = parseFloat($('#jumlah_penarikan').val().replace(/[^\d]/g, '')) || 0;
+        
+        // Update saldo non tunai (berkurang)
+        const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+        const newNonTunai = currentNonTunai - jumlahPenarikan;
+        $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newNonTunai)));
+        
+        // Update saldo tunai (bertambah)
+        const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+        const newTunai = currentTunai + jumlahPenarikan;
+        $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+        
+        // Update total dana tersedia
+        const totalDana = newNonTunai + newTunai;
+        $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+        
+        // Update tabel data
+        this.updateTableAfterPenarikan();
+        
+        // Update summary data
+        this.updateSummaryAfterPenarikan();
+    }
+
+    /**
+    * Update saldo setelah penarikan tunai
+    */
+    async updateSaldoAfterPenarikan() {
+        try {
+            // Ambil penganggaran ID dengan benar
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) {
+                console.error('Penganggaran ID not found');
+                return;
+            }
+            
+            console.log('Updating saldo after penarikan, penganggaranId:', penganggaranId);
+            
+            // Ambil saldo terbaru
+            const response = await $.ajax({
+                url: `/bku/total-dana-tersedia/${penganggaranId}`,
+                method: 'GET'
+            });
+            
+            console.log('Saldo response:', response);
+            
+            if (response.success) {
+                // Update total dana tersedia
+                $('h4.fw-semibold.text-dark').text(response.formatted_total);
+                
+                // Hitung saldo baru secara manual
+                const jumlahPenarikan = parseFloat($('#jumlah_penarikan').val().replace(/[^\d]/g, '')) || 0;
+                
+                // Saldo non tunai berkurang
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai - jumlahPenarikan;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newNonTunai)));
+                
+                // Saldo tunai bertambah
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTunai = currentTunai + jumlahPenarikan;
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+                
+                console.log('Saldo updated successfully:', {
+                    jumlahPenarikan,
+                    oldNonTunai: currentNonTunai,
+                    newNonTunai,
+                    oldTunai: currentTunai,
+                    newTunai
+                });
+            }
+        } catch (error) {
+            console.error('Error updating saldo after penarikan:', error);
+            
+            // Fallback: hitung saldo secara manual
+            const jumlahPenarikan = parseFloat($('#jumlah_penarikan').val().replace(/[^\d]/g, '')) || 0;
+            
+            // Update saldo secara manual
+            const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const newNonTunai = currentNonTunai - jumlahPenarikan;
+            $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newNonTunai)));
+            
+            const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const newTunai = currentTunai + jumlahPenarikan;
+            $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(newTunai));
+            
+            // Update total dana tersedia
+            const totalDana = newNonTunai + newTunai;
+            $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+        }
+    }
+
+    /**
+    * Update tabel setelah penarikan tunai
+    */
+    async updateTableAfterPenarikan() {
+        try {
+            console.log('Updating table after penarikan...');
+            
+            // Ambil data tabel terbaru
+            const response = await $.ajax({
+                url: `/bku/table-data/${this.tahun}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            console.log('Table data response:', response);
+            
+            if (response.success && response.data) {
+                // Format data penarikan tunai dari response
+                const penarikanData = response.data.penarikan_tunais || [];
+                
+                console.log('Penarikan data found:', penarikanData.length);
+                
+                if (penarikanData.length > 0) {
+                    // Hapus semua baris penarikan tunai yang ada
+                    $('#bkuTableBody .penarikan-row').remove();
+                    
+                    // Temukan posisi untuk menambahkan baris penarikan
+                    const firstBkuRow = $('#bkuTableBody .bku-row:first');
+                    const firstPenerimaanRow = $('#bkuTableBody .penerimaan-row:first');
+                    const firstSetorRow = $('#bkuTableBody .setor-row:first');
+                    
+                    // Buat HTML untuk setiap penarikan baru
+                    penarikanData.forEach((penarikan, index) => {
+                        const newRow = `
+                            <tr class="bg-light penarikan-row">
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">${penarikan.tanggal}</td>
+                                <td class="px-4 py-3 fw-semibold">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-arrow-right-circle text-danger me-2"></i>
+                                        <span>${penarikan.uraian}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="dropdown dropstart">
+                                        <button class="btn btn-sm p-0 dropdown-toggle-simple" type="button"
+                                            id="dropdownMenuButtonPenarikan${penarikan.id}" data-bs-toggle="dropdown" aria-expanded="false"
+                                            style="border: none; background: none;">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButtonPenarikan${penarikan.id}">
+                                            <li>
+                                                <a class="dropdown-item text-danger btn-hapus-penarikan" href="${penarikan.delete_url}"
+                                                    data-id="${penarikan.id}">
+                                                    <i class="bi bi-trash me-2"></i>Hapus
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        
+                        // Tambahkan baris baru
+                        if (firstBkuRow.length) {
+                            $(newRow).insertBefore(firstBkuRow);
+                        } else if (firstSetorRow.length) {
+                            $(newRow).insertBefore(firstSetorRow);
+                        } else if (firstPenerimaanRow.length) {
+                            $(newRow).insertBefore(firstPenerimaanRow);
+                        } else {
+                            $('#bkuTableBody').prepend(newRow);
+                        }
+                    });
+                    
+                    console.log('Penarikan rows added successfully');
+                }
+                
+                // Update summary data
+                if (response.data.summary) {
+                    this.updateSummaryDisplay(response.data.summary);
+                }
+                
+                // Re-attach event listeners untuk row baru
+                this.attachBkuEventListeners();
+                
+            } else {
+                console.error('Failed to update table:', response.message);
+            }
+        } catch (error) {
+            console.error('Error updating table after penarikan:', error);
+            
+            // Fallback: reload data tabel secara lengkap
+            this.loadInitialTableData();
+        }
+    }
+
+    /**
+    * Update summary setelah penarikan tunai
+    */
+    async updateSummaryAfterPenarikan() {
+        await this.updateSummaryAfterDelete(); // Gunakan method yang sama
     }
 
     /**
@@ -3451,242 +4375,37 @@ export default class BkuManager {
     }
 
     /**
-     * Perbaiki handleSetorTunaiModalShow untuk ambil saldo tunai real-time
-     */
-    handleSetorTunaiModalShow() {
-        console.log('Modal setor tunai dibuka');
+    * Attach event listeners untuk setor tunai
+    */
+    attachSetorTunaiEvents() {
+        console.log('Attaching setor tunai events...');
         
-        // Reset form dan error
-        this.resetSetorTunaiErrors();
-        $('#formSetorTunai')[0].reset();
+        // Event untuk simpan setor tunai
+        $(document).on('click', '#btnSimpanSetor', this.handleSimpanSetorTunai.bind(this));
         
-        // Set tanggal default ke hari ini (dalam range bulan)
-        const today = new Date();
-        const dateRange = this.getDateRangeForMonth(this.bulan, this.tahun);
-        
-        let defaultDate = dateRange.min; // Default ke awal bulan
-        const todayStr = today.toISOString().split('T')[0];
-        
-        // Jika hari ini dalam range bulan, gunakan hari ini
-        if (todayStr >= dateRange.min && todayStr <= dateRange.max) {
-            defaultDate = todayStr;
-        }
-        
-        $('#tanggal_setor').val(defaultDate);
-        
-        // Ambil saldo tunai real-time dari API
-        this.updateSaldoTunaiFromAPI().then(saldoTunai => {
-            console.log('Saldo tunai updated:', saldoTunai);
-        });
-    }
-
-    // handle input jumlah setor
-    handleJumlahSetorInput(e) {
-        const input = $(e.target);
-        const maxAmount = parseFloat(input.attr('data-max')) || 0;
-        let value = input.val().replace(/[^\d]/g, '');
-
-        // format sebagai rupiah saat user mengetik
-        if (value) {
-            const numValue = parseInt(value) || 0;
-            if (numValue > maxAmount) {
-                input.addClass('is-invalid');
-                input.siblings('.invalid-feedback').remove();
-                input.after(`<div class="invalid-feedback">Jumlah melebihi saldo non tunai (Rp ${this.formatRupiah(maxAmount)})</div>`);
-            } else {
-                input.removeClass('is-invalid');
-                input.siblings('.invalid-feedback').remove();
-            }
-        }
-    }
-
-    handleSimpanSetorTunai(e) {
-        e.preventDefault();
-        
-        console.log('=== SIMPAN SETOR TUNAI ===');
-        
-        // Reset error terlebih dahulu
-        this.resetSetorTunaiErrors();
-        
-        // Validasi form
-        if (!this.validateSetorTunaiForm()) {
-            console.log('Form validation failed');
-            return;
-        }
-        
-        // Kumpulkan data form
-        const formData = this.collectSetorTunaiFormData();
-        
-        // Validasi tambahan: cek apakah jumlah setor melebihi saldo tunai
-        const saldoTunai = parseFloat($('#jumlah_setor').attr('data-max')) || 0;
-        const jumlahSetor = parseFloat(formData.jumlah_setor) || 0;
-        
-        console.log('Validasi jumlah:', {
-            saldoTunai: saldoTunai,
-            jumlahSetor: jumlahSetor,
-            formData: formData
+        // Event untuk format input rupiah
+        $(document).on('blur', '#jumlah_setor', this.formatRupiahInput.bind(this));
+        $(document).on('focus', '#jumlah_setor', (e) => {
+            const input = $(e.target);
+            input.val(input.val().replace(/[^\d]/g, ''));
         });
         
-        if (jumlahSetor > saldoTunai) {
-            this.showSetorTunaiError(
-                'jumlah_setor', 
-                `Jumlah setor (Rp ${this.formatRupiah(jumlahSetor)}) melebihi saldo tunai (Rp ${this.formatRupiah(saldoTunai)})`
-            );
-            return;
-        }
+        // Event saat modal setor tunai dibuka
+        $('#setorTunai').on('show.bs.modal', this.handleSetorTunaiModalShow.bind(this));
         
-        if (jumlahSetor <= 0) {
-            this.showSetorTunaiError('jumlah_setor', 'Jumlah setor harus lebih dari 0');
-            return;
-        }
-        
-        // Tampilkan loading
-        const button = $('#btnSimpanSetor');
-        const originalText = button.html();
-        button.prop('disabled', true)
-            .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...');
-        
-        // Kirim ke server
-        this.submitSetorTunaiForm(formData, button, originalText);
-    }
-
-    // method validateSetorTunaiForm
-    validateSetorTunaiForm() {
-        console.log('=== VALIDASI SETOR TUNAI ===');
-        
-        const tanggal = $('#tanggal_setor').val();
-        const jumlahInput = $('#jumlah_setor');
-        const jumlahText = jumlahInput.val();
-        const jumlah = jumlahText.replace(/[^\d]/g, '');
-        
-        console.log('Data form:', { tanggal, jumlahText, jumlah });
-        
-        let isValid = true;
-        let errorMessages = [];
-        
-        // Reset semua error
-        this.resetSetorTunaiErrors();
-        
-        // 1. Validasi tanggal (HANYA cek tidak kosong)
-        if (!tanggal) {
-            errorMessages.push('Tanggal setor wajib diisi');
-            $('#tanggal_setor').addClass('is-invalid');
-            $('#tanggal_setor_error').text('Tanggal setor wajib diisi');
-            isValid = false;
-        }
-        
-        // 2. Validasi jumlah
-        if (!jumlah) {
-            errorMessages.push('Jumlah setor wajib diisi');
-            jumlahInput.addClass('is-invalid');
-            $('#jumlah_setor_error').text('Jumlah setor wajib diisi');
-            isValid = false;
-        } else {
-            const jumlahNum = parseFloat(jumlah);
-            const maxAmount = parseFloat(jumlahInput.attr('data-max')) || 0;
-            
-            console.log('Jumlah validasi:', { 
-                jumlahNum, 
-                maxAmount, 
-                lebihBesar: jumlahNum > maxAmount 
-            });
-            
-            if (isNaN(jumlahNum) || jumlahNum <= 0) {
-                errorMessages.push('Jumlah setor harus lebih dari 0');
-                jumlahInput.addClass('is-invalid');
-                $('#jumlah_setor_error').text('Jumlah setor harus lebih dari 0');
-                isValid = false;
-            } else if (maxAmount > 0 && jumlahNum > maxAmount) {
-                errorMessages.push(`Jumlah setor (Rp ${this.formatRupiah(jumlahNum)}) melebihi saldo tunai (Rp ${this.formatRupiah(maxAmount)})`);
-                jumlahInput.addClass('is-invalid');
-                $('#jumlah_setor_error').text(`Melebihi saldo tunai (Rp ${this.formatRupiah(maxAmount)})`);
-                isValid = false;
-            }
-        }
-        
-        // Tampilkan semua error jika ada
-        if (errorMessages.length > 0) {
-            console.log('Validation errors:', errorMessages);
-            
-            // Tampilkan SweetAlert dengan semua error
-            Swal.fire({
-                icon: 'error',
-                title: 'Validasi Gagal',
-                html: '<div class="text-start"><p>Perbaiki error berikut:</p><ul class="mb-0">' + 
-                    errorMessages.map(msg => `<li>${msg}</li>`).join('') + 
-                    '</ul></div>',
-                confirmButtonColor: '#0d6efd',
-            });
-        }
-        
-        console.log('Validation result:', isValid);
-        return isValid;
-    }
-
-    // GANTI method collectSetorTunaiFormData
-    collectSetorTunaiFormData() {
-        const penganggaranId = document.querySelector('meta[name="penganggaran-id"]')?.content || 
-                            $('#formSetorTunai input[name="penganggaran_id"]').val();
-        
-        console.log('Collecting form data, penganggaran_id:', penganggaranId);
-        
-        return {
-            penganggaran_id: penganggaranId,
-            tanggal_setor: $('#tanggal_setor').val(),
-            jumlah_setor: $('#jumlah_setor').val().replace(/[^\d]/g, ''),
-            _token: $('meta[name="csrf-token"]').attr('content'),
-            bulan: this.bulan,
-            tahun: this.tahun
-        };
-    }
-
-    // GANTI method resetSetorTunaiErrors
-    resetSetorTunaiErrors() {
-        $('#tanggal_setor, #jumlah_setor').removeClass('is-invalid');
-        $('.invalid-feedback').text('');
-    }
-
-    // Tambahkan method formatDateToDisplay
-    formatDateToDisplay(date) {
-        return date.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
+        // Event saat modal setor tunai ditutup
+        $('#setorTunai').on('hidden.bs.modal', () => {
+            this.resetSetorTunaiErrors();
+            $('#formSetorTunai')[0].reset();
         });
+        
+        // Tambahkan real-time validation
+        this.attachSetorTunaiRealTimeValidation();
     }
 
-    // Method untuk menampilkan error setor tunai
-    showSetorTunaiError(fieldId, message) {
-        const field = $(`#${fieldId}`);
-        const errorElement = $(`#${fieldId}_error`);
-        
-        field.addClass('is-invalid');
-        
-        if (errorElement.length) {
-            errorElement.text(message);
-        } else {
-            field.after(`<div class="invalid-feedback" id="${fieldId}_error">${message}</div>`);
-        }
-        
-        // Scroll ke field yang error
-        field.focus();
-        
-        // Tampilkan alert juga untuk user feedback yang lebih jelas
-        Swal.fire({
-            icon: 'error',
-            title: 'Validasi Gagal',
-            text: message,
-            confirmButtonColor: '#0d6efd',
-        });
-    }
-
-    // Method reset error setor tunai
-    resetSetorTunaiErrors() {
-        $('.is-invalid').removeClass('is-invalid');
-        $('.invalid-feedback').remove();
-    }
-
-    // Method untuk real-time validation pada input jumlah
+    /**
+    * Real-time validation untuk setor tunai
+    */
     attachSetorTunaiRealTimeValidation() {
         $(document).on('input', '#jumlah_setor', (e) => {
             const input = $(e.target);
@@ -3750,19 +4469,242 @@ export default class BkuManager {
         });
     }
 
-    // Kumpulkan data form setor tunai
-    collectSetorTunaiFormData() {
-        const penganggaranId = document.querySelector('meta[name="penganggaran-id"]')?.content || document.querySelector('input[name="penganggaran_id"]')?.value;
+    /**
+    * Handle modal setor tunai show
+    */
+    handleSetorTunaiModalShow() {
+        console.log('Modal setor tunai dibuka');
+        
+        // Reset form dan error
+        this.resetSetorTunaiErrors();
+        $('#formSetorTunai')[0].reset();
+        
+        // Set tanggal default ke hari ini (dalam range bulan)
+        const today = new Date();
+        const dateRange = this.getDateRangeForMonth(this.bulan, this.tahun);
+        
+        let defaultDate = dateRange.min; // Default ke awal bulan
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Jika hari ini dalam range bulan, gunakan hari ini
+        if (todayStr >= dateRange.min && todayStr <= dateRange.max) {
+            defaultDate = todayStr;
+        }
+        
+        $('#tanggal_setor').val(defaultDate);
+        
+        // Update saldo tunai dari display saat ini
+        const saldoTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+        $('#jumlah_setor').attr('data-max', saldoTunai);
+        
+        // Update text maksimal
+        const maxInfo = $('#jumlah_setor').next('small');
+        if (maxInfo.length) {
+            maxInfo.text(`Maksimal: Rp ${this.formatRupiah(saldoTunai)}`);
+        }
+    }
 
+    // handle input jumlah setor
+    handleJumlahSetorInput(e) {
+        const input = $(e.target);
+        const maxAmount = parseFloat(input.attr('data-max')) || 0;
+        let value = input.val().replace(/[^\d]/g, '');
+
+        // format sebagai rupiah saat user mengetik
+        if (value) {
+            const numValue = parseInt(value) || 0;
+            if (numValue > maxAmount) {
+                input.addClass('is-invalid');
+                input.siblings('.invalid-feedback').remove();
+                input.after(`<div class="invalid-feedback">Jumlah melebihi saldo non tunai (Rp ${this.formatRupiah(maxAmount)})</div>`);
+            } else {
+                input.removeClass('is-invalid');
+                input.siblings('.invalid-feedback').remove();
+            }
+        }
+    }
+
+    // Tambahkan method formatDateToDisplay
+    formatDateToDisplay(date) {
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    /**
+    * Handle simpan setor tunai
+    */
+    handleSimpanSetorTunai(e) {
+        e.preventDefault();
+        
+        console.log('=== SIMPAN SETOR TUNAI ===');
+        
+        // Reset error terlebih dahulu
+        this.resetSetorTunaiErrors();
+        
+        // Validasi form
+        if (!this.validateSetorTunaiForm()) {
+            console.log('Form validation failed');
+            return;
+        }
+        
+        // Kumpulkan data form
+        const formData = this.collectSetorTunaiFormData();
+        
+        // Validasi tambahan: cek apakah jumlah setor melebihi saldo tunai
+        const saldoTunai = parseFloat($('#jumlah_setor').attr('data-max')) || 0;
+        const jumlahSetor = parseFloat(formData.jumlah_setor) || 0;
+        
+        console.log('Validasi jumlah:', {
+            saldoTunai: saldoTunai,
+            jumlahSetor: jumlahSetor,
+            formData: formData
+        });
+        
+        if (jumlahSetor > saldoTunai) {
+            this.showSetorTunaiError(
+                'jumlah_setor', 
+                `Jumlah setor (Rp ${this.formatRupiah(jumlahSetor)}) melebihi saldo tunai (Rp ${this.formatRupiah(saldoTunai)})`
+            );
+            return;
+        }
+        
+        if (jumlahSetor <= 0) {
+            this.showSetorTunaiError('jumlah_setor', 'Jumlah setor harus lebih dari 0');
+            return;
+        }
+        
+        // Tampilkan loading
+        const button = $('#btnSimpanSetor');
+        const originalText = button.html();
+        button.prop('disabled', true)
+            .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...');
+        
+        // Kirim ke server
+        this.submitSetorTunaiForm(formData, button, originalText);
+    }
+
+    /**
+    * Validasi form setor tunai
+    */
+    validateSetorTunaiForm() {
+        console.log('=== VALIDASI SETOR TUNAI ===');
+        
+        const tanggal = $('#tanggal_setor').val();
+        const jumlahInput = $('#jumlah_setor');
+        const jumlahText = jumlahInput.val();
+        const jumlah = jumlahText.replace(/[^\d]/g, '');
+        
+        console.log('Data form:', { tanggal, jumlahText, jumlah });
+        
+        let isValid = true;
+        let errorMessages = [];
+        
+        // Reset semua error
+        this.resetSetorTunaiErrors();
+        
+        // 1. Validasi tanggal
+        if (!tanggal) {
+            errorMessages.push('Tanggal setor wajib diisi');
+            $('#tanggal_setor').addClass('is-invalid');
+            $('#tanggal_setor_error').text('Tanggal setor wajib diisi');
+            isValid = false;
+        } else {
+            // Validasi tanggal dalam range bulan
+            const dateRange = this.getDateRangeForMonth(this.bulan, this.tahun);
+            const selectedDate = new Date(tanggal);
+            const minDate = new Date(dateRange.min);
+            const maxDate = new Date(dateRange.max);
+            
+            if (selectedDate < minDate || selectedDate > maxDate) {
+                errorMessages.push(`Tanggal harus antara ${this.formatDateToDisplay(minDate)} dan ${this.formatDateToDisplay(maxDate)}`);
+                $('#tanggal_setor').addClass('is-invalid');
+                $('#tanggal_setor_error').text(
+                    `Tanggal harus antara ${minDate.toLocaleDateString('id-ID')} dan ${maxDate.toLocaleDateString('id-ID')}`
+                );
+                isValid = false;
+            }
+        }
+        
+        // 2. Validasi jumlah
+        if (!jumlah) {
+            errorMessages.push('Jumlah setor wajib diisi');
+            jumlahInput.addClass('is-invalid');
+            $('#jumlah_setor_error').text('Jumlah setor wajib diisi');
+            isValid = false;
+        } else {
+            const jumlahNum = parseFloat(jumlah);
+            const maxAmount = parseFloat(jumlahInput.attr('data-max')) || 0;
+            
+            console.log('Jumlah validasi:', { 
+                jumlahNum, 
+                maxAmount, 
+                lebihBesar: jumlahNum > maxAmount 
+            });
+            
+            if (isNaN(jumlahNum) || jumlahNum <= 0) {
+                errorMessages.push('Jumlah setor harus lebih dari 0');
+                jumlahInput.addClass('is-invalid');
+                $('#jumlah_setor_error').text('Jumlah setor harus lebih dari 0');
+                isValid = false;
+            } else if (maxAmount > 0 && jumlahNum > maxAmount) {
+                errorMessages.push(`Jumlah setor (Rp ${this.formatRupiah(jumlahNum)}) melebihi saldo tunai (Rp ${this.formatRupiah(maxAmount)})`);
+                jumlahInput.addClass('is-invalid');
+                $('#jumlah_setor_error').text(`Melebihi saldo tunai (Rp ${this.formatRupiah(maxAmount)})`);
+                isValid = false;
+            }
+        }
+        
+        // Tampilkan semua error jika ada
+        if (errorMessages.length > 0) {
+            console.log('Validation errors:', errorMessages);
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: '<div class="text-start"><p>Perbaiki error berikut:</p><ul class="mb-0">' + 
+                    errorMessages.map(msg => `<li>${msg}</li>`).join('') + 
+                    '</ul></div>',
+                confirmButtonColor: '#0d6efd',
+            });
+        }
+        
+        console.log('Validation result:', isValid);
+        return isValid;
+    }
+
+    /**
+    * Kumpulkan data form setor tunai
+    */
+    collectSetorTunaiFormData() {
+        const penganggaranId = this.getPenganggaranId();
+        
+        if (!penganggaranId) {
+            Swal.fire({
+                title: 'Error!',
+                text: 'Data penganggaran tidak ditemukan. Silakan refresh halaman.',
+                icon: 'error'
+            });
+            return null;
+        }
+        
+        console.log('Collecting setor form data, penganggaran_id:', penganggaranId);
+        
         return {
             penganggaran_id: penganggaranId,
             tanggal_setor: $('#tanggal_setor').val(),
             jumlah_setor: $('#jumlah_setor').val().replace(/[^\d]/g, ''),
-            _token: $('meta[name="csrf-token"]').attr('content')
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            bulan: this.bulan,
+            tahun: this.tahun
         };
     }
 
-    // kirim form setor tunai ke server
+    /**
+    * Kirim form setor tunai ke server
+    */
     submitSetorTunaiForm(formData, button, originalText) {
         console.log('Submitting setor tunai form:', formData);
         
@@ -3770,9 +4712,6 @@ export default class BkuManager {
             url: '/bku/setor-tunai',
             method: 'POST',
             data: formData,
-            beforeSend: () => {
-                console.log('Sending request...');
-            },
             success: (response) => {
                 console.log('Response received:', response);
                 
@@ -3796,11 +4735,8 @@ export default class BkuManager {
                         $('#formSetorTunai')[0].reset();
                         this.resetSetorTunaiErrors();
                         
-                        // Trigger event untuk update saldo
-                        $(document).trigger('setorTunaiSaved', [response]);
-                        
-                        // Reload halaman untuk update data
-                        location.reload();
+                        // Update tabel dan data tanpa reload
+                        this.handleSetorTunaiSaved(response);
                     });
                 } else {
                     Swal.fire({
@@ -3832,7 +4768,15 @@ export default class BkuManager {
                     if (xhr.responseJSON.errors) {
                         const errors = xhr.responseJSON.errors;
                         Object.keys(errors).forEach((field) => {
-                            this.showSetorTunaiError(field, errors[field][0]);
+                            const fieldId = field === 'jumlah_setor' ? 'jumlah_setor' : field;
+                            const errorElement = $(`#${fieldId}_error`);
+                            
+                            if (errorElement.length) {
+                                errorElement.text(errors[field][0]);
+                            } else {
+                                $(`#${fieldId}`).addClass('is-invalid')
+                                    .after(`<div class="invalid-feedback" id="${fieldId}_error">${errors[field][0]}</div>`);
+                            }
                         });
                         
                         errorMessage = 'Terjadi kesalahan validasi data';
@@ -3849,30 +4793,526 @@ export default class BkuManager {
         });
     }
 
-    attachSetorTunaiEvents() {
-        console.log('Attaching setor tunai events...');
+    /**
+    * Handle setelah setor tunai disimpan
+    */
+    handleSetorTunaiSaved(response) {
+        console.log('Handling setor tunai saved:', response);
         
-        // Event untuk simpan setor tunai
-        $(document).on('click', '#btnSimpanSetor', this.handleSimpanSetorTunai.bind(this));
+        // Update saldo display secara manual
+        const jumlahSetor = parseFloat($('#jumlah_setor').val().replace(/[^\d]/g, '')) || 0;
         
-        // Event untuk format input rupiah
-        $(document).on('blur', '#jumlah_setor', this.formatRupiahInput.bind(this));
-        $(document).on('focus', '#jumlah_setor', (e) => {
-            const input = $(e.target);
-            input.val(input.val().replace(/[^\d]/g, ''));
+        // Update saldo tunai (berkurang)
+        const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+        const newTunai = currentTunai - jumlahSetor;
+        $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newTunai)));
+        
+        // Update saldo non tunai (bertambah)
+        const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+        const newNonTunai = currentNonTunai + jumlahSetor;
+        $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+        
+        // Update total dana tersedia
+        const totalDana = newNonTunai + newTunai;
+        $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+        
+        // Update tabel data
+        this.updateTableAfterSetor();
+        
+        // Update summary data
+        this.updateSummaryAfterSetor();
+    }
+
+    /**
+    * Update saldo setelah setor tunai
+    */
+    async updateSaldoAfterSetor() {
+        try {
+            // Ambil penganggaran ID dengan benar
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) {
+                console.error('Penganggaran ID not found');
+                return;
+            }
+            
+            console.log('Updating saldo after setor, penganggaranId:', penganggaranId);
+            
+            // Ambil saldo terbaru
+            const response = await $.ajax({
+                url: `/bku/total-dana-tersedia/${penganggaranId}`,
+                method: 'GET'
+            });
+            
+            console.log('Saldo response:', response);
+            
+            if (response.success) {
+                // Update total dana tersedia
+                $('h4.fw-semibold.text-dark').text(response.formatted_total);
+                
+                // Hitung saldo baru secara manual
+                const jumlahSetor = parseFloat($('#jumlah_setor').val().replace(/[^\d]/g, '')) || 0;
+                
+                // Saldo tunai berkurang
+                const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newTunai = currentTunai - jumlahSetor;
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newTunai)));
+                
+                // Saldo non tunai bertambah
+                const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+                const newNonTunai = currentNonTunai + jumlahSetor;
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+                
+                console.log('Saldo updated successfully:', {
+                    jumlahSetor,
+                    oldTunai: currentTunai,
+                    newTunai,
+                    oldNonTunai: currentNonTunai,
+                    newNonTunai
+                });
+            }
+        } catch (error) {
+            console.error('Error updating saldo after setor:', error);
+            
+            // Fallback: hitung saldo secara manual
+            const jumlahSetor = parseFloat($('#jumlah_setor').val().replace(/[^\d]/g, '')) || 0;
+            
+            // Update saldo secara manual
+            const currentTunai = parseFloat($('#saldoTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const newTunai = currentTunai - jumlahSetor;
+            $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(Math.max(0, newTunai)));
+            
+            const currentNonTunai = parseFloat($('#saldoNonTunaiDisplay').val().replace(/[^\d]/g, '')) || 0;
+            const newNonTunai = currentNonTunai + jumlahSetor;
+            $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(newNonTunai));
+            
+            // Update total dana tersedia
+            const totalDana = newNonTunai + newTunai;
+            $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+        }
+    }
+
+    /**
+    * Update tabel setelah setor tunai
+    */
+    async updateTableAfterSetor() {
+        try {
+            console.log('Updating table after setor...');
+            
+            // Ambil data tabel terbaru
+            const response = await $.ajax({
+                url: `/bku/table-data/${this.tahun}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            console.log('Table data response:', response);
+            
+            if (response.success && response.data) {
+                // Format data setor tunai dari response
+                const setorData = response.data.setor_tunais || [];
+                
+                console.log('Setor data found:', setorData.length);
+                
+                if (setorData.length > 0) {
+                    // Hapus semua baris setor tunai yang ada
+                    $('#bkuTableBody .setor-row').remove();
+                    
+                    // Temukan posisi untuk menambahkan baris setor
+                    const firstBkuRow = $('#bkuTableBody .bku-row:first');
+                    const firstPenarikanRow = $('#bkuTableBody .penarikan-row:first');
+                    const firstPenerimaanRow = $('#bkuTableBody .penerimaan-row:first');
+                    
+                    // Buat HTML untuk setiap setor baru
+                    setorData.forEach((setor, index) => {
+                        const newRow = `
+                            <tr class="bg-light setor-row">
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">${setor.tanggal}</td>
+                                <td class="px-4 py-3 fw-semibold">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-arrow-left-circle text-success me-2"></i>
+                                        <span>${setor.uraian}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="dropdown dropstart">
+                                        <button class="btn btn-sm p-0 dropdown-toggle-simple" type="button"
+                                            id="dropdownMenuButtonSetor${setor.id}" data-bs-toggle="dropdown" aria-expanded="false"
+                                            style="border: none; background: none;">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButtonSetor${setor.id}">
+                                            <li>
+                                                <a class="dropdown-item text-danger btn-hapus-setor" href="${setor.delete_url}"
+                                                    data-id="${setor.id}">
+                                                    <i class="bi bi-trash me-2"></i>Hapus
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        
+                        // Tambahkan baris baru
+                        if (firstBkuRow.length) {
+                            $(newRow).insertBefore(firstBkuRow);
+                        } else if (firstPenarikanRow.length) {
+                            $(newRow).insertBefore(firstPenarikanRow);
+                        } else if (firstPenerimaanRow.length) {
+                            $(newRow).insertBefore(firstPenerimaanRow);
+                        } else {
+                            $('#bkuTableBody').prepend(newRow);
+                        }
+                    });
+                    
+                    console.log('Setor rows added successfully');
+                }
+                
+                // Update summary data
+                if (response.data.summary) {
+                    this.updateSummaryDisplay(response.data.summary);
+                }
+                
+                // Re-attach event listeners untuk row baru
+                this.attachBkuEventListeners();
+                
+            } else {
+                console.error('Failed to update table:', response.message);
+            }
+        } catch (error) {
+            console.error('Error updating table after setor:', error);
+            
+            // Fallback: reload data tabel secara lengkap
+            this.loadInitialTableData();
+        }
+    }
+
+    /**
+    * Update summary setelah setor tunai
+    */
+    async updateSummaryAfterSetor() {
+        await this.updateSummaryAfterDelete(); // Gunakan method yang sama
+    }
+
+    /**
+    * Method untuk menampilkan error setor tunai
+    */
+    showSetorTunaiError(fieldId, message) {
+        const field = $(`#${fieldId}`);
+        const errorElement = $(`#${fieldId}_error`);
+        
+        field.addClass('is-invalid');
+        
+        if (errorElement.length) {
+            errorElement.text(message);
+        } else {
+            field.after(`<div class="invalid-feedback" id="${fieldId}_error">${message}</div>`);
+        }
+        
+        // Scroll ke field yang error
+        field.focus();
+        
+        // Tampilkan alert juga untuk user feedback yang lebih jelas
+        Swal.fire({
+            icon: 'error',
+            title: 'Validasi Gagal',
+            text: message,
+            confirmButtonColor: '#0d6efd',
         });
+    }
+
+    /**
+    * Reset error setor tunai
+    */
+    resetSetorTunaiErrors() {
+        $('#tanggal_setor, #jumlah_setor').removeClass('is-invalid');
+        $('.invalid-feedback').remove();
+    }
+
+    /**
+    * Get penganggaran ID dari berbagai sumber
+    */
+    getPenganggaranId() {
+        // Coba dari meta tag
+        const metaPenganggaranId = document.querySelector('meta[name="penganggaran-id"]')?.content;
+        if (metaPenganggaranId) {
+            return metaPenganggaranId;
+        }
         
-        // Event saat modal setor tunai dibuka
-        $('#setorTunai').on('show.bs.modal', this.handleSetorTunaiModalShow.bind(this));
+        // Coba dari container data attribute
+        const container = document.querySelector('[data-penganggaran-id]');
+        if (container && container.dataset.penganggaranId) {
+            return container.dataset.penganggaranId;
+        }
         
-        // Event saat modal setor tunai ditutup
-        $('#setorTunai').on('hidden.bs.modal', () => {
-            this.resetSetorTunaiErrors();
-            $('#formSetorTunai')[0].reset();
-        });
+        // Coba dari URL query string
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPenganggaranId = urlParams.get('penganggaran_id');
+        if (urlPenganggaranId) {
+            return urlPenganggaranId;
+        }
         
-        // Tambahkan real-time validation
-        this.attachSetorTunaiRealTimeValidation();
+        console.error('Penganggaran ID not found from any source');
+        return null;
+    }
+
+    /**
+     * Update card anggaran setelah perubahan data
+     */
+    async updateAnggaranCard() {
+        try {
+            console.log('Updating anggaran card...');
+            
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) {
+                console.error('Penganggaran ID not found');
+                return;
+            }
+            
+            // Hitung data terbaru
+            const anggaranBulanIni = await this.hitungAnggaranBulanIni();
+            const totalDibelanjakanBulanIni = await this.hitungTotalDibelanjakanBulanIni();
+            const anggaranBelumDibelanjakan = await this.hitungAnggaranBelumDibelanjakan();
+            
+            // Update display
+            $('#anggaranBisaDibelanjakan').val('Rp ' + this.formatRupiah(anggaranBulanIni));
+            $('#sudahDibelanjakan').val('Rp ' + this.formatRupiah(totalDibelanjakanBulanIni));
+            $('#bisaDianggarkanUlang').val('Rp ' + this.formatRupiah(anggaranBelumDibelanjakan));
+            
+            console.log('Anggaran card updated:', {
+                anggaranBulanIni,
+                totalDibelanjakanBulanIni,
+                anggaranBelumDibelanjakan
+            });
+            
+        } catch (error) {
+            console.error('Error updating anggaran card:', error);
+        }
+    }
+
+    /**
+     * Hitung anggaran bulan ini
+     */
+    async hitungAnggaranBulanIni() {
+        try {
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) return 0;
+            
+            const response = await $.ajax({
+                url: `/bku/anggaran-bulan-ini/${penganggaranId}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            return response.success ? response.total_anggaran : 0;
+        } catch (error) {
+            console.error('Error hitung anggaran bulan ini:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Hitung total dibelanjakan bulan ini
+     */
+    async hitungTotalDibelanjakanBulanIni() {
+        try {
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) return 0;
+            
+            const response = await $.ajax({
+                url: `/bku/total-dibelanjakan/${penganggaranId}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            return response.success ? response.total_dibelanjakan : 0;
+        } catch (error) {
+            console.error('Error hitung total dibelanjakan:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Hitung anggaran belum dibelanjakan
+     */
+    async hitungAnggaranBelumDibelanjakan() {
+        try {
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) return 0;
+            
+            const response = await $.ajax({
+                url: `/bku/anggaran-belum-dibelanjakan/${penganggaranId}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            return response.success ? response.anggaran_belum_dibelanjakan : 0;
+        } catch (error) {
+            console.error('Error hitung anggaran belum dibelanjakan:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Method helper untuk mengambil semua data anggaran sekaligus
+     */
+    async getAnggaranData() {
+        try {
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) {
+                return {
+                    anggaranBulanIni: 0,
+                    totalDibelanjakanBulanIni: 0,
+                    anggaranBelumDibelanjakan: 0
+                };
+            }
+            
+            // Menggunakan summary data yang sudah ada
+            const response = await $.ajax({
+                url: `/bku/summary-data/${this.tahun}/${encodeURIComponent(this.bulan)}`,
+                method: 'GET'
+            });
+            
+            if (response.success && response.data) {
+                return {
+                    anggaranBulanIni: response.data.anggaran_bulan_ini || 0,
+                    totalDibelanjakanBulanIni: response.data.total_dibelanjakan_bulan_ini || 0,
+                    anggaranBelumDibelanjakan: response.data.anggaran_belum_dibelanjakan || 0
+                };
+            }
+            
+            return {
+                anggaranBulanIni: 0,
+                totalDibelanjakanBulanIni: 0,
+                anggaranBelumDibelanjakan: 0
+            };
+        } catch (error) {
+            console.error('Error get anggaran data:', error);
+            return {
+                anggaranBulanIni: 0,
+                totalDibelanjakanBulanIni: 0,
+                anggaranBelumDibelanjakan: 0
+            };
+        }
+    }
+
+    /**
+     * Update card anggaran dari data summary
+     */
+    async updateAnggaranCardFromSummary() {
+        try {
+            const data = await this.getAnggaranData();
+            
+            // Update display
+            $('#anggaranBisaDibelanjakan').val('Rp ' + this.formatRupiah(data.anggaranBulanIni));
+            $('#sudahDibelanjakan').val('Rp ' + this.formatRupiah(data.totalDibelanjakanBulanIni));
+            $('#bisaDianggarkanUlang').val('Rp ' + this.formatRupiah(data.anggaranBelumDibelanjakan));
+            
+            console.log('Anggaran card updated from summary:', data);
+        } catch (error) {
+            console.error('Error updating anggaran card from summary:', error);
+        }
+    }
+
+    /**
+     * Handle setelah BKU disimpan
+     */
+    handleBkuSaved(response) {
+        console.log('Handling BKU saved:', response);
+        
+        // Update tabel
+        this.updateTableAndData();
+        
+        // Update card anggaran
+        this.updateAnggaranCardFromSummary();
+        
+        // Update saldo
+        this.updateSaldoAfterBku(response);
+    }
+
+    /**
+     * Update setelah BKU dihapus
+     */
+    async updateAfterBkuDelete() {
+        // Update tabel
+        await this.updateTableAndData();
+        
+        // Update card anggaran
+        await this.updateAnggaranCardFromSummary();
+        
+        // Update summary
+        await this.updateSummaryAfterDelete();
+    }
+
+    /**
+     * Update saldo setelah BKU disimpan
+     */
+    updateSaldoAfterBku(response) {
+        try {
+            if (response.saldo_update) {
+                // Update saldo dari response
+                $('#saldoNonTunaiDisplay').val('Rp ' + this.formatRupiah(response.saldo_update.non_tunai || 0));
+                $('#saldoTunaiDisplay').val('Rp ' + this.formatRupiah(response.saldo_update.tunai || 0));
+                
+                // Update total dana tersedia
+                const totalDana = (response.saldo_update.non_tunai || 0) + (response.saldo_update.tunai || 0);
+                $('h4.fw-semibold.text-dark').text('Rp ' + this.formatRupiah(totalDana));
+            }
+        } catch (error) {
+            console.error('Error updating saldo after BKU:', error);
+        }
+    }
+
+    /**
+    * Update semua UI setelah perubahan data
+    */
+    async updateAllUIAfterChange() {
+        console.log('Updating all UI after change...');
+        
+        // 1. Update card anggaran
+        await this.updateAnggaranCardFromSummary();
+        
+        // 2. Update saldo display
+        await this.updateSaldoDisplayFromAPI();
+        
+        // 3. Update summary lainnya jika perlu
+        await this.updateSummaryAfterDelete();
+        
+        console.log('All UI updated successfully');
+    }
+
+    /**
+    * Update saldo display dari API
+    */
+    async updateSaldoDisplayFromAPI() {
+        try {
+            const penganggaranId = this.getPenganggaranId();
+            
+            if (!penganggaranId) return;
+            
+            const response = await $.ajax({
+                url: `/bku/total-dana-tersedia/${penganggaranId}`,
+                method: 'GET'
+            });
+            
+            if (response.success) {
+                // Update total dana tersedia
+                $('h4.fw-semibold.text-dark').text(response.formatted_total);
+                
+                // Untuk saldo non tunai dan tunai, kita perlu hitung ulang
+                // Atau gunakan method lain jika ada
+            }
+        } catch (error) {
+            console.error('Error updating saldo display from API:', error);
+        }
     }
 }
 

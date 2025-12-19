@@ -338,6 +338,12 @@ Route::middleware(['auth'])->prefix('bku')->group(function () {
     // Route untuk summary data
     Route::get('/summary-data/{tahun}/{bulan}', [BukuKasUmumController::class, 'getSummaryData'])
         ->name('bku.summary-data');
+        
+    Route::get('/bku/anggaran-bulan-ini/{penganggaran_id}/{bulan}', [BukuKasUmumController::class, 'getAnggaranBulanIni'])
+    ->name('bku.anggaran-bulan-ini');
+
+    Route::get('/bku/anggaran-belum-dibelanjakan/{penganggaran_id}/{bulan}', [BukuKasUmumController::class, 'getAnggaranBelumDibelanjakan'])
+        ->name('bku.anggaran-belum-dibelanjakan');
 
     Route::post('/store', [BukuKasUmumController::class, 'store'])->name('bku.store');
 
